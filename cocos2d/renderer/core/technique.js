@@ -12,7 +12,6 @@ export default class Technique {
    */
   constructor(stages, passes, layer = 0) {
     this._id = _genID++;
-    this._stages = stages;
     this._stageIDs = config.stageIDs(stages);
     this._passes = passes;
     this._layer = layer;
@@ -29,13 +28,5 @@ export default class Technique {
 
   get stageIDs() {
     return this._stageIDs;
-  }
-
-  clone () {
-    let passes = [];
-    for (let i = 0; i < this._passes.length; i++) {
-      passes.push(this._passes[i].clone());
-    }
-    return new Technique(this._stages, passes, this._layer);
   }
 }

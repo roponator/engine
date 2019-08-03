@@ -253,7 +253,7 @@ let ScrollView = cc.Class({
          */
         brake: {
             default: 0.5,
-            type: cc.Float,
+            type: 'Float',
             range: [0, 1, 0.1],
             tooltip: CC_DEV && 'i18n:COMPONENT.scrollview.brake',
         },
@@ -1230,7 +1230,7 @@ let ScrollView = cc.Class({
             this._isScrollEndedWithThresholdEventFired = true;
         }
 
-        if (this.elastic && !reachedEnd) {
+        if (this.elastic) {
             let brakeOffsetPosition = newPosition.sub(this._autoScrollBrakingStartPosition);
             if (isAutoScrollBrake) {
                 brakeOffsetPosition = brakeOffsetPosition.mul(brakingFactor);

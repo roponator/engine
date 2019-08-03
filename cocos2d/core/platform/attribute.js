@@ -1,4 +1,4 @@
-﻿/****************************************************************************
+/****************************************************************************
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
@@ -147,14 +147,6 @@ function setClassAttr (ctor, propName, key, value) {
  * @module cc
  */
 
-function PrimitiveType (name, def) {
-    this.name = name;
-    this.default = def;
-}
-PrimitiveType.prototype.toString = function () {
-    return this.name;
-};
-
 /**
  * Specify that the input value must be integer in Inspector.
  * Also used to indicates that the elements in array should be type integer.
@@ -172,7 +164,7 @@ PrimitiveType.prototype.toString = function () {
  * })
  * member = [];
  */
-cc.Integer = new PrimitiveType('Integer', 0);
+cc.Integer = 'Integer';
 
 /**
  * Indicates that the elements in array should be type double.
@@ -190,7 +182,7 @@ cc.Integer = new PrimitiveType('Integer', 0);
  * })
  * member = [];
  */
-cc.Float = new PrimitiveType('Float', 0);
+cc.Float = 'Float';
 
 if (CC_EDITOR) {
     js.get(cc, 'Number', function () {
@@ -215,7 +207,7 @@ if (CC_EDITOR) {
  * })
  * member = [];
  */
-cc.Boolean = new PrimitiveType('Boolean', false);
+cc.Boolean = 'Boolean';
 
 /**
  * Indicates that the elements in array should be type string.
@@ -233,7 +225,7 @@ cc.Boolean = new PrimitiveType('Boolean', false);
  * })
  * member = [];
  */
-cc.String = new PrimitiveType('String', '');
+cc.String = 'String';
 
 /*
 BuiltinAttributes: {
@@ -251,98 +243,110 @@ Callbacks: {
 }
  */
 
-// Ensures the type matches its default value
 function getTypeChecker (type, attrName) {
-    return function (constructor, mainPropName) {
-        var propInfo = '"' + js.getClassName(constructor) + '.' + mainPropName + '"';
-        var mainPropAttrs = attr(constructor, mainPropName);
-        if (!mainPropAttrs.saveUrlAsAsset) {
-            var mainPropAttrsType = mainPropAttrs.type;
-            if (mainPropAttrsType === cc.Integer || mainPropAttrsType === cc.Float) {
-                mainPropAttrsType = 'Number';
+    if (CC_DEV) {
+        return function (constructor, mainPropName) {
+            var propInfo = '"' + js.getClassName(constructor) + '.' + mainPropName + '"';
+            var mainPropAttrs = attr(constructor, mainPropName);
+            if (!mainPropAttrs.saveUrlAsAsset) {
+                var mainPropAttrsType = mainPropAttrs.type;
+                if (mainPropAttrsType === cc.Integer || mainPropAttrsType === cc.Float) {
+                    mainPropAttrsType = 'Number';
+                }
+                if (mainPropAttrsType !== type) {
+                    cc.warnID(3604, propInfo);
+                    return;
+                }
             }
-            else if (mainPropAttrsType === cc.String || mainPropAttrsType === cc.Boolean) {
-                mainPropAttrsType = '' + mainPropAttrsType;
-            }
-            if (mainPropAttrsType !== type) {
-                cc.warnID(3604, propInfo);
+            if (!mainPropAttrs.hasOwnProperty('default')) {
                 return;
             }
-        }
-        if (!mainPropAttrs.hasOwnProperty('default')) {
-            return;
-        }
-        var defaultVal = mainPropAttrs.default;
-        if (typeof defaultVal === 'undefined') {
-            return;
-        }
-        var isContainer = Array.isArray(defaultVal) || isPlainEmptyObj(defaultVal);
-        if (isContainer) {
-            return;
-        }
-        var defaultType = typeof defaultVal;
-        var type_lowerCase = type.toLowerCase();
-        if (defaultType === type_lowerCase) {
-            if (!mainPropAttrs.saveUrlAsAsset) {
-                if (type_lowerCase === 'object') {
-                    if (defaultVal && !(defaultVal instanceof mainPropAttrs.ctor)) {
-                        cc.warnID(3605, propInfo, js.getClassName(mainPropAttrs.ctor));
+            var defaultVal = mainPropAttrs.default;
+            if (typeof defaultVal === 'undefined') {
+                return;
+            }
+            var isContainer = Array.isArray(defaultVal) || isPlainEmptyObj(defaultVal);
+            if (isContainer) {
+                return;
+            }
+            var defaultType = typeof defaultVal;
+            var type_lowerCase = type.toLowerCase();
+            if (defaultType === type_lowerCase) {
+                if (!mainPropAttrs.saveUrlAsAsset) {
+                    if (type_lowerCase === 'object') {
+                        if (defaultVal && !(defaultVal instanceof mainPropAttrs.ctor)) {
+                            cc.warnID(3605, propInfo, js.getClassName(mainPropAttrs.ctor));
+                        }
+                        else {
+                            return;
+                        }
                     }
-                    else {
-                        return;
+                    else if (type !== 'Number') {
+                        cc.warnID(3606, attrName, propInfo, type);
                     }
-                }
-                else if (type !== 'Number') {
-                    cc.warnID(3606, attrName, propInfo, type);
                 }
             }
-        }
-        else if (defaultType !== 'function') {
-            if (type === cc.String && defaultVal == null) {
-                if (!js.isChildClassOf(mainPropAttrs.ctor, cc.RawAsset)) {
-                    cc.warnID(3607, propInfo);
+            else if (defaultType !== 'function') {
+                if (type === cc.String && defaultVal == null) {
+                    if (!js.isChildClassOf(mainPropAttrs.ctor, cc.RawAsset)) {
+                        cc.warnID(3607, propInfo);
+                    }
+                }
+                else if (mainPropAttrs.ctor === String && (defaultType === 'string' || defaultVal == null)) {
+                    mainPropAttrs.type = cc.String;
+                    cc.warnID(3608, propInfo);
+                }
+                else if (mainPropAttrs.ctor === Boolean && defaultType === 'boolean') {
+                    mainPropAttrs.type = cc.Boolean;
+                    cc.warnID(3609, propInfo);
+                }
+                else if (mainPropAttrs.ctor === Number && defaultType === 'number') {
+                    mainPropAttrs.type = cc.Float;
+                    cc.warnID(3610, propInfo);
+                }
+                else {
+                    cc.warnID(3611, attrName, propInfo, defaultType);
                 }
             }
             else {
-                cc.warnID(3611, attrName, propInfo, defaultType);
+                return;
             }
-        }
-        else {
-            return;
-        }
-        delete mainPropAttrs.type;
-    };
+            delete mainPropAttrs.type;
+        };
+    }
 }
 
-// Ensures the type matches its default value
-function getObjTypeChecker (typeCtor) {
-    return function (classCtor, mainPropName) {
-        getTypeChecker('Object', 'type')(classCtor, mainPropName);
-        // check ValueType
-        var defaultDef = getClassAttrs(classCtor)[mainPropName + DELIMETER + 'default'];
-        var defaultVal = require('./CCClass').getDefault(defaultDef);
-        if (!Array.isArray(defaultVal) && js.isChildClassOf(typeCtor, cc.ValueType)) {
-            var typename = js.getClassName(typeCtor);
-            var info = cc.js.formatStr('No need to specify the "type" of "%s.%s" because %s is a child class of ValueType.',
-                js.getClassName(classCtor), mainPropName, typename);
-            if (defaultDef) {
-                cc.log(info);
-            }
-            else {
-                cc.warnID(3612, info, typename, js.getClassName(classCtor), mainPropName, typename);
+function ObjectType (typeCtor) {
+    return {
+        type: 'Object',
+        ctor: typeCtor,
+        _onAfterProp: CC_DEV && function (classCtor, mainPropName) {
+            getTypeChecker('Object', 'type')(classCtor, mainPropName);
+            // check ValueType
+            var defaultDef = getClassAttrs(classCtor)[mainPropName + DELIMETER + 'default'];
+            var defaultVal = require('./CCClass').getDefault(defaultDef);
+            if (!Array.isArray(defaultVal) && js.isChildClassOf(typeCtor, cc.ValueType)) {
+                var typename = js.getClassName(typeCtor);
+                var info = cc.js.formatStr('No need to specify the "type" of "%s.%s" because %s is a child class of ValueType.',
+                    js.getClassName(classCtor), mainPropName, typename);
+                if (defaultDef) {
+                    cc.log(info);
+                }
+                else {
+                    cc.warnID(3612, info, typename, js.getClassName(classCtor), mainPropName, typename);
+                }
             }
         }
     };
 }
 
 module.exports = {
-    PrimitiveType,
     attr: attr,
     getClassAttrs: getClassAttrs,
     getClassAttrsProto: getClassAttrsProto,
     setClassAttr: setClassAttr,
     DELIMETER: DELIMETER,
-    getTypeChecker_ET: ((CC_EDITOR && !Editor.isBuilder) || CC_TEST) && getTypeChecker,
-    getObjTypeChecker_ET: ((CC_EDITOR && !Editor.isBuilder) || CC_TEST) && getObjTypeChecker,
+    getTypeChecker: getTypeChecker,
+    ObjectType: ObjectType,
     ScriptUuid: {},      // the value will be represented as a uuid string
 };

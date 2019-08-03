@@ -121,10 +121,4 @@ export default class Pass {
     this._stencilZPassOpBack = stencilZPassOp;
     this._stencilWriteMaskBack = stencilWriteMask;
   }
-
-  clone () {
-    let pass = new Pass(this._programName);
-    Object.assign(pass, this);
-    return pass;
-  }
 }

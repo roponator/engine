@@ -4,7 +4,7 @@ import { Pool } from '../memop';
 import BaseRenderData from './base-render-data';
 
 var _pool;
-var _vertsPool = new Pool(() => {
+var _dataPool = new Pool(() => {
   return {
     x: 0.0,
     y: 0.0,
@@ -25,9 +25,16 @@ var _vertsPool = new Pool(() => {
 export default class RenderData extends BaseRenderData {
   constructor () {
     super();
-    this.vertices = [];
-    this.indices = [];
-    this.material = null;
+    this._data = [];
+    this._indices = [];
+
+    this._pivotX = 0;
+    this._pivotY = 0;
+    this._width = 0;
+    this._height = 0;
+
+    this.uvDirty = true;
+    this.vertDirty = true;
   }
 
   get type () {
@@ -35,21 +42,34 @@ export default class RenderData extends BaseRenderData {
   }
 
   get dataLength () {
-    return this.vertices.length;
+    return this._data.length;
   }
 
   set dataLength (length) {
-    let verts = this.vertices;
-    if (verts.length !== length) {
-      // Free extra vertices
-      for (let i = length; i < verts.length; i++) {
-        _vertsPool.free(verts[i]);
+    let data = this._data;
+    if (data.length !== length) {
+      // Free extra data
+      for (let i = length; i < data.length; i++) {
+        _dataPool.free(data[i]);
       }
-      // Alloc needed vertices
-      for (let i = verts.length; i < length; i++) {
-        verts[i] = _vertsPool.alloc();
+      // Alloc needed data
+      for (let i = data.length; i < length; i++) {
+        data[i] = _dataPool.alloc();
       }
-      verts.length = length;
+      data.length = length;
+    }
+  }
+
+  updateSizeNPivot (width, height, pivotX, pivotY) {
+    if (width !== this._width || 
+        height !== this._height ||
+        pivotX !== this._pivotX ||
+        pivotY !== this._pivotY) {
+      this._width = width;
+      this._height = height;
+      this._pivotX = pivotX;
+      this._pivotY = pivotY;
+      this.vertDirty = true;
     }
   }
   
@@ -59,13 +79,14 @@ export default class RenderData extends BaseRenderData {
 
   static free (data) {
     if (data instanceof RenderData) {
-      let verts = data.vertices;
-      for (let i = verts.length-1; i > 0; i--) {
-        _vertsPool.free(verts[i]);
+      for (let i = data.length-1; i > 0; i--) {
+        _dataPool.free(data._data[i]);
       }
-      data.vertices.length = 0;
-      data.indices.length = 0;
+      data._data.length = 0;
+      data._indices.length = 0;
       data.material = null;
+      data.uvDirty = true;
+      data.vertDirty = true;
       data.vertexCount = 0;
       data.indiceCount = 0;
       _pool.free(data);

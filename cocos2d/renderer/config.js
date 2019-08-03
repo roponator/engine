@@ -14,8 +14,6 @@ export default {
     _name2stageID[name] = stageID;
 
     _stageOffset += 1;
-
-    CC_JSB && CC_NATIVERENDERER && window.renderer.addStage(name);
   },
 
   stageID: function (name) {

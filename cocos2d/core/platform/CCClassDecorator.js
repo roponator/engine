@@ -151,9 +151,10 @@ function genProperty (ctor, properties, propName, options, desc, cache) {
     if (options) {
         fullOptions = CC_DEV ? Preprocess.getFullFormOfProperty(options, propName, js.getClassName(ctor)) :
                                Preprocess.getFullFormOfProperty(options);
+        fullOptions = fullOptions || options;
     }
     var existsProperty = properties[propName];
-    var prop = js.mixin(existsProperty || {}, fullOptions || options || {});
+    var prop = js.mixin(existsProperty || {}, fullOptions || {});
 
     var isGetset = desc && (desc.get || desc.set);
     if (isGetset) {
@@ -213,8 +214,8 @@ function genProperty (ctor, properties, propName, options, desc, cache) {
             }
         }
 
-        if ((CC_EDITOR && !Editor.isBuilder) || CC_TEST) {
-            if (!fullOptions && options && options.hasOwnProperty('default')) {
+        if (CC_DEV) {
+            if (options && options.hasOwnProperty('default')) {
                 cc.warnID(3653, propName, js.getClassName(ctor));
                 // prop.default = options.default;
             }

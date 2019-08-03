@@ -1,4 +1,4 @@
-﻿/****************************************************************************
+/****************************************************************************
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
@@ -93,8 +93,7 @@ var AssetLibrary = {
         }
         Loader.load(item, function (error, asset) {
             if (error || !asset) {
-                let errorInfo = error ? (error.message || error.errorMessage || error) : 'Unknown error';
-                error = new Error(`[AssetLibrary] loading JSON or dependencies failed: ${errorInfo}`);
+                error = new Error('[AssetLibrary] loading JSON or dependencies failed: ' + (error ? error.message : 'Unknown error'));
             }
             else {
                 if (asset.constructor === cc.SceneAsset) {

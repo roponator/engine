@@ -25,11 +25,10 @@
 
 import gfx from '../../renderer/gfx';
 import RenderData from '../../renderer/render-data/render-data';
-import RenderHandle from '../renderer/render-data';
-import Assembler from '../renderer/assembler';
 
 const Component = require('./CCComponent');
 const RenderFlow = require('../renderer/render-flow');
+const BlendFactor = require('../platform/CCMacro').BlendFactor;
 const Material = require('../assets/material/CCMaterial');
 
 /**
@@ -77,21 +76,10 @@ let RenderComponent = cc.Class({
     ctor () {
         this._renderData = null;
         this.__allocedDatas = [];
-        this._vertsDirty = true;
-        this._material = null;
-        
-        this._assembler = null;
-    },
-
-    _resetAssembler () {
-        this.setVertsDirty(true);
-        Assembler.init(this);
-
-        this._updateColor();
-    },
-
-    __preload () {
-        this._resetAssembler();
+        this._vertexFormat = null;
+        this._toPostHandle = false;
+        this._assembler = this.constructor._assembler;
+        this._postAssembler = this.constructor._postAssembler;
     },
 
     onEnable () {
@@ -99,19 +87,11 @@ let RenderComponent = cc.Class({
             this.node._renderComponent.enabled = false;
         }
         this.node._renderComponent = this;
-
-        this.node.on(cc.Node.EventType.SIZE_CHANGED, this._onNodeSizeDirty, this);
-        this.node.on(cc.Node.EventType.ANCHOR_CHANGED, this._onNodeSizeDirty, this);
-        this.node.on(cc.Node.EventType.COLOR_CHANGED, this._updateColor, this);
-
-        this.node._renderFlag |= RenderFlow.FLAG_RENDER | RenderFlow.FLAG_UPDATE_RENDER_DATA | RenderFlow.FLAG_OPACITY;
+        this.node._renderFlag |= RenderFlow.FLAG_RENDER | RenderFlow.FLAG_UPDATE_RENDER_DATA;
     },
 
     onDisable () {
         this.node._renderComponent = null;
-        this.node.off(cc.Node.EventType.SIZE_CHANGED, this._onNodeSizeDirty, this);
-        this.node.off(cc.Node.EventType.ANCHOR_CHANGED, this._onNodeSizeDirty, this);
-        this.node.off(cc.Node.EventType.COLOR_CHANGED, this._updateColor, this);
         this.disableRender();
     },
 
@@ -123,24 +103,12 @@ let RenderComponent = cc.Class({
         this._materials.length = 0;
         this._renderData = null;
 
-        if (CC_JSB && CC_NATIVERENDERER) {
-            this._assembler && this._assembler.destroy && this._assembler.destroy();
+        let uniforms = this._uniforms;
+        for (let name in uniforms) {
+            _uniformPool.remove(_uniformPool._data.indexOf(uniforms[name]));
         }
-    },
-
-    setVertsDirty () {
-        this._vertsDirty = true;
-        this.markForUpdateRenderData(true);
-    },
-
-    _onNodeSizeDirty () {
-        this.setVertsDirty();
-        this.markForUpdateRenderData(true);
-    },
-
-    _on3DNodeChanged () {
-        this.setVertsDirty();
-        this.markForUpdateRenderData(true);
+        this._uniforms = null;
+        this._defines = null;
     },
     
     _canRender () {
@@ -166,8 +134,17 @@ let RenderComponent = cc.Class({
         }
     },
 
+    markForCustomIARender (enable) {
+        if (enable && this._canRender()) {
+            this.node._renderFlag |= RenderFlow.FLAG_CUSTOM_IA_RENDER;
+        }
+        else if (!enable) {
+            this.node._renderFlag &= ~RenderFlow.FLAG_CUSTOM_IA_RENDER;
+        }
+    },
+
     disableRender () {
-        this.node._renderFlag &= ~(RenderFlow.FLAG_RENDER | RenderFlow.FLAG_UPDATE_RENDER_DATA);
+        this.node._renderFlag &= ~(RenderFlow.FLAG_RENDER | RenderFlow.FLAG_CUSTOM_IA_RENDER | RenderFlow.FLAG_UPDATE_RENDER_DATA);
     },
 
     requestRenderData () {
@@ -222,26 +199,8 @@ let RenderComponent = cc.Class({
 
     _activateMaterial (force) {
     },
-
-    _updateColor () {
-        if (this._assembler.updateColor) {
-            this._assembler.updateColor(this);
-        }
-
-        this.node._renderFlag &= ~RenderFlow.FLAG_OPACITY;
-    },
-
-    _checkBacth (renderer, cullingMask) {
-        let material = this.sharedMaterials[0];
-        if ((material && material.getHash() !== renderer.material.getHash()) || 
-            renderer.cullingMask !== cullingMask) {
-            renderer._flush();
-    
-            renderer.node = material.getDefine('CC_USE_MODEL') ? this.node : renderer._dummyNode;
-            renderer.material = material;
-            renderer.cullingMask = cullingMask;
-        }
-    }
 });
+RenderComponent._assembler = null;
+RenderComponent._postAssembler = null;
 
 cc.RenderComponent = module.exports = RenderComponent;

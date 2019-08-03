@@ -219,15 +219,7 @@ var _Deserializer = (function () {
         var obj = null;     // the obj to return
         var klass = null;
         var type = serialized.__type__;
-        if (type === 'TypedArray') {
-            var array = serialized.array;
-            obj = new window[serialized.ctor](array.length);
-            for (var i = 0; i < array.length; ++i) {
-                obj[i] = array[i];
-            }
-            return obj;
-        }
-        else if (type) {
+        if (type) {
 
             // Type Object (including CCClass)
 
@@ -526,7 +518,10 @@ var _Deserializer = (function () {
                 var isPrimitiveType;
                 var userType = attrs[propName + TYPE];
                 if (defaultValue === undefined && userType) {
-                    isPrimitiveType = userType instanceof Attr.PrimitiveType;
+                    isPrimitiveType = userType === cc.String ||
+                                      userType === cc.Integer ||
+                                      userType === cc.Float ||
+                                      userType === cc.Boolean;
                 }
                 else {
                     var defaultType = typeof defaultValue;
@@ -604,7 +599,10 @@ var _Deserializer = (function () {
                 if (fastMode) {
                     var userType = attrs[propName + TYPE];
                     if (defaultValue === undefined && userType) {
-                        isPrimitiveType = userType instanceof Attr.PrimitiveType;
+                        isPrimitiveType = userType === cc.String ||
+                                          userType === cc.Integer ||
+                                          userType === cc.Float ||
+                                          userType === cc.Boolean;
                     }
                     else {
                         var defaultType = typeof defaultValue;

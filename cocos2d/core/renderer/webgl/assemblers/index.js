@@ -23,8 +23,6 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-cc.assemblers = {};
- 
 require('./sprite');
 require('./mask-assembler');
 require('./graphics');

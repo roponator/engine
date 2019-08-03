@@ -24,27 +24,29 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-const js = cc.js;
-const CallbacksInvoker = require('../platform/callbacks-invoker');
+var js = cc.js;
+var CallbacksHandler = require('../platform/callbacks-invoker').CallbacksHandler;
 
-// Extends CallbacksInvoker to handle and invoke event callbacks.
+// Extends CallbacksHandler to handle and invoke event callbacks.
 function EventListeners () {
-    CallbacksInvoker.call(this);
+    CallbacksHandler.call(this);
 }
-js.extend(EventListeners, CallbacksInvoker);
+js.extend(EventListeners, CallbacksHandler);
 
-EventListeners.prototype.emit = function (event, captureListeners) {
-    let key = event.type;
-    const list = this._callbackTable[key];
+EventListeners.prototype.invoke = function (event, captureListeners) {
+    var key = event.type;
+    var list = this._callbackTable[key];
     if (list) {
-        let rootInvoker = !list.isInvoking;
+        var rootInvoker = !list.isInvoking;
         list.isInvoking = true;
 
-        const infos = list.callbackInfos;
-        for (let i = 0, len = infos.length; i < len; ++i) {
-            const info = infos[i];
-            if (info && info.callback) {
-                info.callback.call(info.target, event, captureListeners);
+        var callbacks = list.callbacks;
+        var targets = list.targets;
+        for (var i = 0, len = callbacks.length; i < len; ++i) {
+            var callback = callbacks[i];
+            if (callback) {
+                var target = targets[i] || event.currentTarget;
+                callback.call(target, event, captureListeners);
                 if (event._propagationImmediateStopped) {
                     break;
                 }

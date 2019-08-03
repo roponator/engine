@@ -25,7 +25,7 @@
  ****************************************************************************/
 
 const macro = require('../../platform/CCMacro');
-const EditBoxImplBase = require('../editbox/EditBoxImplBase');
+const EditBoxImplBase = require('./EditBoxImplBase');
 const Label = require('../CCLabel');
 const Types = require('./types');
 const InputMode = Types.InputMode;
@@ -297,7 +297,10 @@ let EditBox = cc.Class({
         },
 
         // To be removed in the future
-        _N$fontColor: undefined,
+        _N$fontColor: {
+            default: undefined,
+            type: cc.Color,
+        },
 
         /**
          * !#en The display text of placeholder.
@@ -377,7 +380,10 @@ let EditBox = cc.Class({
         },
 
         // To be removed in the future
-        _N$placeholderFontColor: undefined,
+        _N$placeholderFontColor: {
+            default: undefined,
+            type: cc.Color,
+        },
 
         /**
          * !#en The maximize input length of EditBox.

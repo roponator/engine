@@ -411,15 +411,11 @@ let ArmatureDisplay = cc.Class({
     },
 
     _updateBatch () {
-        let baseMaterial = this.getMaterial(0);
-        if (baseMaterial) {
-            baseMaterial.define('CC_USE_MODEL', !this.enableBatch);
-        }
         let cache = this._materialCache;
         for (let mKey in cache) {
             let material = cache[mKey];
             if (material) {
-                material.define('CC_USE_MODEL', !this.enableBatch);
+                material.define('_USE_MODEL', !this.enableBatch);
             }
         }
     },
@@ -431,7 +427,6 @@ let ArmatureDisplay = cc.Class({
     },
 
     __preload () {
-        this._resetAssembler();
         this._init();
     },
 
@@ -521,16 +516,6 @@ let ArmatureDisplay = cc.Class({
         }
     },
 
-    _emitCacheCompleteEvent () {
-        // Animation loop complete, the event diffrent from dragonbones inner event,
-        // It has no event object.
-        this._eventTarget.emit(dragonBones.EventObject.LOOP_COMPLETE);
-
-        // Animation complete the event diffrent from dragonbones inner event,
-        // It has no event object.
-        this._eventTarget.emit(dragonBones.EventObject.COMPLETE);
-    },
-
     update (dt) {
         if (!this.isAnimationCached()) return;
         if (!this._playing) return;
@@ -542,7 +527,7 @@ let ArmatureDisplay = cc.Class({
         // Animation Start, the event diffrent from dragonbones inner event,
         // It has no event object.
         if (this._accTime == 0 && this._playCount == 0) {
-            this._eventTarget.emit(dragonBones.EventObject.START);
+            this._eventTarget && this._eventTarget.emit(dragonBones.EventObject.START);
         }
 
         let globalTimeScale = dragonBones.timeScale;
@@ -553,6 +538,15 @@ let ArmatureDisplay = cc.Class({
         }
 
         if (frameCache.isCompleted && frameIdx >= frames.length) {
+
+            // Animation loop complete, the event diffrent from dragonbones inner event,
+            // It has no event object.
+            this._eventTarget && this._eventTarget.emit(dragonBones.EventObject.LOOP_COMPLETE);
+
+            // Animation complete the event diffrent from dragonbones inner event,
+            // It has no event object.
+            this._eventTarget && this._eventTarget.emit(dragonBones.EventObject.COMPLETE);
+
             this._playCount ++;
             if ((this.playTimes > 0 && this._playCount >= this.playTimes)) {
                 // set frame to end frame.
@@ -560,12 +554,10 @@ let ArmatureDisplay = cc.Class({
                 this._accTime = 0;
                 this._playing = false;
                 this._playCount = 0;
-                this._emitCacheCompleteEvent();
                 return;
             }
             this._accTime = 0;
             frameIdx = 0;
-            this._emitCacheCompleteEvent();
         }
 
         this._curFrame = frames[frameIdx];
@@ -621,12 +613,6 @@ let ArmatureDisplay = cc.Class({
             return;
         }
 
-        if (!texture.loaded) {
-            this.disableRender();
-            texture.once('load', this._activateMaterial, this);
-            return;
-        }
-
         // Get material
         let material = this.sharedMaterials[0];
         if (!material) {
@@ -636,15 +622,10 @@ let ArmatureDisplay = cc.Class({
             material = Material.getInstantiatedMaterial(material, this);
         }
 
-        material.define('CC_USE_MODEL', true);
-        material.define('USE_TEXTURE', true);
+        material.define('_USE_MODEL', true);
         material.setProperty('texture', texture);
         
         this.setMaterial(0, material);
-        this._prepareToRender();
-    },
-
-    _prepareToRender () {
         this.markForRender(true);
     },
 

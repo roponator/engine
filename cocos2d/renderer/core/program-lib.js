@@ -103,8 +103,7 @@ export default class ProgramLib {
    *   programLib.define(program);
    */
   define(prog) {
-    let { name, defines, glsl1 } = prog;
-    let { vert, frag } = glsl1 || prog;
+    let { name, vert, frag, defines, extensions } = prog;
     if (this._templates[name]) {
       // console.warn(`Failed to define shader ${name}: already exists.`);
       return;
@@ -140,27 +139,6 @@ export default class ProgramLib {
       def._offset = offset;
     }
 
-    let uniforms = prog.uniforms || [];
-
-    if (prog.samplers) {
-      for (let i = 0; i < prog.samplers.length; i++) {
-        uniforms.push(prog.samplers[i])
-      }
-    }
-    if (prog.blocks) {
-      for (let i = 0; i < prog.blocks.length; i++) {
-        let defines = prog.blocks[i].defines;
-        let members = prog.blocks[i].members;
-        for (let j = 0; j < members.length; j++) {
-          uniforms.push({
-            defines,
-            name: members[j].name,
-            type: members[j].type,
-          })
-        }
-      }
-    }
-
     // store it
     this._templates[name] = {
       id,
@@ -169,7 +147,7 @@ export default class ProgramLib {
       frag,
       defines,
       attributes: prog.attributes,
-      uniforms,
+      uniforms: prog.uniforms,
       extensions: prog.extensions
     };
   }

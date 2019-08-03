@@ -24,6 +24,4 @@
  ****************************************************************************/
 
 require('./CCTiledMap');
-require('./CCTiledMapRenderDataList');
-require('./tiledmap-buffer');
 require('./tmx-layer-assembler');

@@ -1,7 +1,6 @@
 import { ctor2enums } from '../../../renderer/types';
-import murmurhash2 from '../../../renderer/murmurhash2_gc';
+import murmurhash2 from './murmurhash2_gc';
 import utils from './utils';
-import effect from '../../../renderer/core/effect';
 
 export default class CustomProperties {
     constructor () {
@@ -10,21 +9,18 @@ export default class CustomProperties {
         this._dirty = false;
     }
 
-    setProperty (name, value, type, directly) {
+    setProperty (name, value) {
         let uniform = this._properties[name];
         if (!uniform) {
             uniform = Object.create(null);
             uniform.name = name;
-            uniform.type = type || ctor2enums[value.constructor];
-            uniform.directly = directly;
+            uniform.type = ctor2enums[value.constructor];
             this._properties[name] = uniform;
         }
         else if (uniform.value === value) return;
         
         this._dirty = true;
-        uniform.directly = directly;
-
-        effect.prototype.setProperty.call(this, name, value);
+        uniform.value = value;
     }
 
     getProperty(name) {
@@ -64,6 +60,3 @@ export default class CustomProperties {
         return this._hash = murmurhash2(hash, 666);
     }
 }
-
-cc.CustomProperties = CustomProperties;
-cc.CustomProperties.ctor2enums = ctor2enums;

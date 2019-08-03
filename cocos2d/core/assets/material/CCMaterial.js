@@ -30,7 +30,7 @@ const PixelFormat = Texture.PixelFormat;
 const EffectAsset = require('../CCEffectAsset');
 
 import Effect from '../../../renderer/core/effect';
-import murmurhash2 from '../../../renderer/murmurhash2_gc';
+import murmurhash2 from './murmurhash2_gc';
 import utils from './utils';
 
 /**
@@ -44,11 +44,9 @@ let Material = cc.Class({
     extends: Asset,
 
     ctor () {
-        this._manualHash = false;
         this._dirty = true;
         this._effect = null;
         this._owner = null;
-        this._hash = 0;
     },
 
     properties: {
@@ -93,7 +91,7 @@ let Material = cc.Class({
                     cc.error('Can not set an empty effect asset.');
                     return;
                 }
-                this._effect = this._effectAsset.getInstantiatedEffect();;
+                this._effect = Effect.parseEffect(asset);
             }
         },
 
@@ -161,12 +159,9 @@ let Material = cc.Class({
 
         if (this._effect) {
             if (val instanceof Texture) {
-                this._effect.setProperty(name, val);
-                let format = val.getPixelFormat();
-                if (format === PixelFormat.RGBA_ETC1 ||
-                    format === PixelFormat.RGB_A_PVRTC_4BPPV1 ||
-                    format === PixelFormat.RGB_A_PVRTC_2BPPV1) {
-                    this.define('CC_USE_ALPHA_ATLAS_' + name.toUpperCase(), true);
+                this._effect.setProperty(name, val.getImpl());
+                if (val.getPixelFormat() === PixelFormat.RGBA_ETC1) {
+                    this.define('_USE_ETC1_' + name.toUpperCase(), true);
                 }
             }
             else {
@@ -203,38 +198,23 @@ let Material = cc.Class({
     },
 
     updateHash (hash) {
-        if (hash === undefined || hash === null) {
-            hash = this.computeHash();
-        } else {
-            this._manualHash = true;
-        }
         this._dirty = false;
         this._hash = hash;
-        if (this._effect) {
-            this._effect.updateHash(this._hash);
-        }
     },
 
-    computeHash () {
+    getHash () {
+        if (!this._dirty) return this._hash;
+        this._dirty = false;
         let effect = this._effect;
+
         let hashStr = '';
         if (effect) {
             hashStr += utils.serializeDefines(effect._defines);
             hashStr += utils.serializeTechniques(effect._techniques);
             hashStr += utils.serializeUniforms(effect._properties);
         }
-        return murmurhash2(hashStr, 666);
-    },
 
-    getHash () {
-        if (!this._dirty) return this._hash;
-        
-        if (!this._manualHash) {
-            this.updateHash();
-        }
-
-        this._dirty = false;
-        return this._hash;
+        return this._hash = murmurhash2(hashStr, 666);
     },
 
     onLoad () {

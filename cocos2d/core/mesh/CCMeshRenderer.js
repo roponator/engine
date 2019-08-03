@@ -23,19 +23,14 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-import IARenderData from '../../renderer/render-data/ia-render-data';
-import gfx from '../../renderer/gfx';
-import InputAssembler from '../../renderer/core/input-assembler';
-import geomUtils from '../geom-utils';
-import CustomProperties from '../assets/material/custom-properties';
-
 const RenderComponent = require('../components/CCRenderComponent');
 const Mesh = require('./CCMesh');
 const RenderFlow = require('../renderer/render-flow');
-const Renderer = require('../renderer');
 const Material = require('../assets/material/CCMaterial');
 
-const BLACK_COLOR = cc.Color.BLACK;
+import geomUtils from '../geom-utils';
+import gfx from '../../renderer/gfx';
+import CustomProperties from '../assets/material/custom-properties';
 
 
 /**
@@ -90,7 +85,6 @@ let ShadowCastingMode = cc.Enum({
  * !#zh
  * 网格渲染组件
  * @class MeshRenderer
- * @extends RenderComponent
  */
 let MeshRenderer = cc.Class({
     name: 'cc.MeshRenderer',
@@ -108,8 +102,6 @@ let MeshRenderer = cc.Class({
 
         _receiveShadows: false,
         _shadowCastingMode: ShadowCastingMode.OFF,
-
-        _enableAutoBatch: false,
 
         /**
          * !#en
@@ -176,22 +168,6 @@ let MeshRenderer = cc.Class({
                 this._updateCastShadow();
             },
             type: ShadowCastingMode
-        },
-
-        /**
-         * !#en
-         * Enable auto merge mesh, only support when mesh's VertexFormat, PrimitiveType, materials are all the same
-         * !#zh 
-         * 开启自动合并 mesh 功能，只有在网格的 顶点格式，PrimitiveType, 使用的材质 都一致的情况下才会有效
-         * @property {Boolean} enableAutoBatch
-         */
-        enableAutoBatch: {
-            get () {
-                return this._enableAutoBatch;
-            },
-            set (val) {
-                this._enableAutoBatch = val;
-            }
         }
     },
 
@@ -200,9 +176,9 @@ let MeshRenderer = cc.Class({
     },
 
     ctor () {
-        this._wireFrameDatas = [];
+        this._renderDatas = [];
         this._boundingBox = null;
-        this._customProperties = new cc.CustomProperties();
+        this._customProperties = new CustomProperties();
     },
 
     onEnable () {
@@ -236,7 +212,7 @@ let MeshRenderer = cc.Class({
     _activateMaterial (force) {
         let mesh = this._mesh;
 
-        if (!mesh || mesh._subDatas.length === 0) {
+        if (!mesh || mesh.subMeshes.length === 0) {
             this.disableRender();
             return;
         }
@@ -263,80 +239,30 @@ let MeshRenderer = cc.Class({
             materials[0] = material;
         }
 
+        this._updateMeshAttribute();
         this._updateReceiveShadow();
         this._updateCastShadow();
-        this._updateMeshAttribute();
         
         this.markForUpdateRenderData(true);
         this.markForRender(true);
     },
 
     _updateReceiveShadow () {
-        this._customProperties.define('CC_USE_SHADOW_MAP', this._receiveShadows);
+        this._customProperties.define('_USE_SHADOW_MAP', this._receiveShadows);
     },
 
     _updateCastShadow () {
-        this._customProperties.define('CC_SHADOW_CASTING', this._shadowCastingMode === ShadowCastingMode.ON);
+        this._customProperties.define('_SHADOW_CASTING', this._shadowCastingMode === ShadowCastingMode.ON);
     },
 
     _updateMeshAttribute () {
-        let subDatas = this._mesh && this._mesh.subDatas;
-        if (!subDatas) return;
+        let subMeshes = this._mesh && this._mesh.subMeshes;
+        if (!subMeshes) return;
 
-        let vfm = subDatas[0].vfm;
-        this._customProperties.define('CC_USE_ATTRIBUTE_COLOR', !!vfm.element(gfx.ATTR_COLOR));
-        this._customProperties.define('CC_USE_ATTRIBUTE_UV0', !!vfm.element(gfx.ATTR_UV0));
-        this._customProperties.define('CC_USE_ATTRIBUTE_NORMAL', !!vfm.element(gfx.ATTR_NORMAL));
-
-        this._wireFrameDatas.length = 0;
-
-        if (CC_JSB && CC_NATIVERENDERER) {
-            this._assembler.updateMeshData(this);
-        }
-    },
-
-    _updateWireFrameDatas () {
-        let wireFrameDatas = this._wireFrameDatas;
-        let subMeshes = this._mesh.subMeshes;
-        if (subMeshes.length === wireFrameDatas.length) return;
-
-        wireFrameDatas.length = subMeshes.length;
-        let subDatas = this._mesh._subDatas;
-        for (let i = 0; i < subMeshes.length; i++) {
-            wireFrameDatas[i] = this._createWireFrameData(subMeshes[i], subDatas[i].iData);
-        }
-    },
-
-    _createWireFrameData (ia, oldIbData) {
-        let m = new Material();
-        m.copy(Material.getBuiltinMaterial('unlit'));
-        m.setProperty('diffuseColor', BLACK_COLOR);
-
-        let indices = [];
-        for (let i = 0; i < oldIbData.length; i+=3) {
-            let a = oldIbData[ i + 0 ];
-            let b = oldIbData[ i + 1 ];
-            let c = oldIbData[ i + 2 ];
-            indices.push(a, b, b, c, c, a);
-        }
-
-        let ibData = new Uint16Array(indices);
-        let ib = new gfx.IndexBuffer(
-            Renderer.device,
-            gfx.INDEX_FMT_UINT16,
-            gfx.USAGE_STATIC,
-            ibData,
-            ibData.length
-        );
-
-        return {
-            material: m,
-            ia: new InputAssembler(ia._vertexBuffer, ib, gfx.PT_LINES)
-        };
-    },
-
-    _checkBacth () {
-        
+        let attr2el = subMeshes[0]._vertexBuffer._format._attr2el;
+        this._customProperties.define('_USE_ATTRIBUTE_COLOR', !!attr2el[gfx.ATTR_COLOR]);
+        this._customProperties.define('_USE_ATTRIBUTE_UV0', !!attr2el[gfx.ATTR_UV0]);
+        this._customProperties.define('_USE_ATTRIBUTE_NORMAL', !!attr2el[gfx.ATTR_NORMAL]);
     }
 });
 

@@ -81,14 +81,6 @@ class VertexBuffer {
   get count () {
     return this._numVertices;
   }
-
-  getFormat (name) {
-    return this._format.element(name);
-  }
-
-  setUsage (usage) {
-    this._usage = usage;
-  }
 }
 
 export default VertexBuffer;

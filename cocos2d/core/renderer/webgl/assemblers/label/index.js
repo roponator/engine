@@ -23,18 +23,17 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-import Assembler from '../../../assembler';
-import Label from '../../../../components/CCLabel';
+const Label = require('../../../../components/CCLabel');
 
-import TTF from './2d/ttf';
-import Bmfont from './2d/bmfont';
-import Letter from './2d/letter';
+const ttfAssembler = require('./2d/ttf');
+const bmfontAssembler = require('./2d/bmfont');
+const letterAssembler = require('./2d/letter');
 
-import TTF3D from './3d/ttf';
-import Bmfont3D from './3d/bmfont';
-import Letter3D from './3d/letter';
+const ttfAssembler3D = require('./3d/ttf');
+const bmfontAssembler3D = require('./3d/bmfont');
+const letterAssembler3D = require('./3d/letter');
 
-Label._canvasPool = {
+let canvasPool = {
     pool: [],
     get () {
         let data = this.pool.pop();
@@ -58,29 +57,30 @@ Label._canvasPool = {
     }
 };
 
-Assembler.register(cc.Label, {
-    getConstructor(label) {
-        let is3DNode = label.node.is3DNode;
-        let ctor = is3DNode ? TTF3D : TTF;
+var labelAssembler = {
+    getAssembler (comp) {
+        let is3DNode = comp.node.is3DNode;
+        let assembler = is3DNode ? ttfAssembler3D : ttfAssembler;
         
-        if (label.font instanceof cc.BitmapFont) {
-            ctor = is3DNode ? Bmfont3D : Bmfont;
-        } else if (label.cacheMode === Label.CacheMode.CHAR) {
+        if (comp.font instanceof cc.BitmapFont) {
+            assembler = is3DNode ? bmfontAssembler3D : bmfontAssembler;
+        } else if (comp.cacheMode === Label.CacheMode.CHAR) {
             if (cc.sys.browserType === cc.sys.BROWSER_TYPE_WECHAT_GAME_SUB) {
                 cc.warn('sorry, subdomain does not support CHAR mode currently!');
             } else {
-                ctor = is3DNode ? Letter3D : Letter;
+                assembler = is3DNode ? letterAssembler3D : letterAssembler;
             }  
         }
 
-        return ctor;
+        return assembler;
     },
 
-    TTF,
-    Bmfont,
-    Letter,
+    // Skip invalid labels (without own _assembler)
+    updateRenderData (label) {
+        return label.__allocedDatas;
+    }
+};
 
-    TTF3D,
-    Bmfont3D,
-    Letter3D
-});
+Label._assembler = labelAssembler;
+Label._canvasPool = canvasPool;
+module.exports = labelAssembler;

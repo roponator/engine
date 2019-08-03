@@ -44,7 +44,7 @@ let Graphics = cc.Class({
     },
 
     ctor () {
-        this._impl = new Graphics._Impl(this);
+        this._impl = Graphics._assembler.createImpl(this);
     },
 
     properties: {
@@ -171,7 +171,7 @@ let Graphics = cc.Class({
 
     onRestore () {
         if (!this._impl) {
-            this._impl = new Graphics._Impl(this);
+            this._impl = Graphics._assembler.createImpl();
         }
     },
 
@@ -181,8 +181,8 @@ let Graphics = cc.Class({
     },
 
     onDestroy () {
-        this.clear(true);
         this._super();
+        this._impl.clear(this, true);
         this._impl = null;
     },
 
@@ -193,12 +193,15 @@ let Graphics = cc.Class({
             return;
         }
         
+        this.node._renderFlag &= ~cc.RenderFlow.FLAG_RENDER;
+        this.node._renderFlag |= cc.RenderFlow.FLAG_CUSTOM_IA_RENDER;
+
         if (this.sharedMaterials[0]) {
             return;
         }
         
         let material = Material.getInstantiatedBuiltinMaterial('2d-base', this);
-        material.define('CC_USE_MODEL', true);
+        material.define('_USE_MODEL', true);
         this.setMaterial(0, material);
     },
 
@@ -348,8 +351,7 @@ let Graphics = cc.Class({
      * @param {Boolean} [clean] Whether to clean the graphics inner cache.
      */
     clear (clean) {
-        this._impl.clear(clean);
-        this._assembler.clear(clean);
+        this._impl.clear(this, clean);
     },
 
     /**
@@ -367,7 +369,7 @@ let Graphics = cc.Class({
      * @method stroke
      */
     stroke () {
-        this._assembler.stroke(this);
+        Graphics._assembler.stroke(this);
     },
 
     /**
@@ -376,10 +378,8 @@ let Graphics = cc.Class({
      * @method fill
      */
     fill () {
-        this._assembler.fill(this);
+        Graphics._assembler.fill(this);
     }
 });
 
 cc.Graphics = module.exports = Graphics;
-cc.Graphics.Types = Types;
-cc.Graphics.Helper = require('./helper');

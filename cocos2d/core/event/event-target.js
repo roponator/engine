@@ -1,4 +1,4 @@
-﻿/****************************************************************************
+/****************************************************************************
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
@@ -95,24 +95,17 @@ var proto = EventTarget.prototype;
  *     cc.log("fire in the hole");
  * }, node);
  */
-proto.__on = proto.on;
-proto.on = function (type, callback, target, once) {
+proto.on = function (type, callback, target) {
     if (!callback) {
         cc.errorID(6800);
         return;
     }
 
     if ( !this.hasEventListener(type, callback, target) ) {
-        this.__on(type, callback, target, once);
+        this.add(type, callback, target);
 
-        if (target) {
-            if (target.__eventTargets) {
-                target.__eventTargets.push(this);
-            }
-            else if (target.node && target.node.__eventTargets) {
-                target.node.__eventTargets.push(this);
-            }
-        }
+        if (target && target.__eventTargets)
+            target.__eventTargets.push(this);
     }
     return callback;
 };
@@ -138,21 +131,15 @@ proto.on = function (type, callback, target, once) {
  * // remove all fire event listeners
  * eventTarget.off('fire');
  */
-proto.__off = proto.off;
 proto.off = function (type, callback, target) {
     if (!callback) {
         this.removeAll(type);
     }
     else {
-        this.__off(type, callback, target);
+        this.remove(type, callback, target);
 
-        if (target) {
-            if (target.__eventTargets) {
-                fastRemove(target.__eventTargets, this);
-            }
-            else if (target.node && target.node.__eventTargets) {
-                fastRemove(target.node.__eventTargets, this);
-            }
+        if (target && target.__eventTargets) {
+            fastRemove(target.__eventTargets, this);
         }
     }
 };
@@ -193,8 +180,39 @@ proto.targetOff = proto.removeAll;
  * }, node);
  */
 proto.once = function (type, callback, target) {
-    this.on(type, callback, target, true);
+    var eventType_hasOnceListener = '__ONCE_FLAG:' + type;
+    var hasOnceListener = this.hasEventListener(eventType_hasOnceListener, callback, target);
+    if (!hasOnceListener) {
+        var self = this;
+        var onceWrapper = function (arg1, arg2, arg3, arg4, arg5) {
+            self.off(type, onceWrapper, target);
+            self.remove(eventType_hasOnceListener, callback, target);
+            callback.call(this, arg1, arg2, arg3, arg4, arg5);
+        };
+        this.on(type, onceWrapper, target);
+        this.add(eventType_hasOnceListener, callback, target);
+    }
 };
+
+/**
+ * !#en
+ * Trigger an event directly with the event name and necessary arguments.
+ * !#zh
+ * 通过事件名发送自定义事件
+ *
+ * @method emit
+ * @param {String} type - event type
+ * @param {*} [arg1] - First argument
+ * @param {*} [arg2] - Second argument
+ * @param {*} [arg3] - Third argument
+ * @param {*} [arg4] - Fourth argument
+ * @param {*} [arg5] - Fifth argument
+ * @example
+ * 
+ * eventTarget.emit('fire', event);
+ * eventTarget.emit('fire', message, emitter);
+ */
+proto.emit = CallbacksInvoker.prototype.invoke;
 
 /**
  * !#en
@@ -206,7 +224,7 @@ proto.once = function (type, callback, target) {
  * @param {Event} event
  */
 proto.dispatchEvent = function (event) {
-    this.emit(event.type, event);
+    this.invoke(event.type, event);
 };
 
 cc.EventTarget = module.exports = EventTarget;

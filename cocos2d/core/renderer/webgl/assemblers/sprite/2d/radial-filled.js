@@ -23,7 +23,8 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-import Assembler2D from '../../../../assembler-2d';
+const fillVertices = require('../../utils').fillVertices;
+const packToDynamicAtlas = require('../../../../utils/utils').packToDynamicAtlas;
 
 const PI_2 = Math.PI * 2;
 
@@ -169,54 +170,84 @@ function _getVertAngle (start, end) {
     }
 }
 
-export default class RadialFilledAssembler extends Assembler2D {
-    initData (sprite) {
-        this._renderData.createFlexData(0, 4, 6, this.getVfmt());
-    }
+function _generateTriangle (data, offset, vert0, vert1, vert2) {
+    let vertices = _vertices;
+    let v0x = vertices[0];
+    let v0y = vertices[1];
+    let v1x = vertices[2];
+    let v1y = vertices[3];
+
+    data[offset].x = vert0.x;
+    data[offset].y = vert0.y;
+    data[offset + 1].x = vert1.x;
+    data[offset + 1].y = vert1.y;
+    data[offset + 2].x = vert2.x;
+    data[offset + 2].y = vert2.y;
+
+    let progressX, progressY;
+    progressX = (vert0.x - v0x) / (v1x - v0x);
+    progressY = (vert0.y - v0y) / (v1y - v0y);
+    _generateUV(progressX, progressY, data, offset);
+
+    progressX = (vert1.x - v0x) / (v1x - v0x);
+    progressY = (vert1.y - v0y) / (v1y - v0y);
+    _generateUV(progressX, progressY, data, offset + 1);
+
+    progressX = (vert2.x - v0x) / (v1x - v0x);
+    progressY = (vert2.y - v0y) / (v1y - v0y);
+    _generateUV(progressX, progressY, data, offset + 2);
+}
+
+function _generateUV (progressX, progressY, data, offset) {
+    let uvs = _uvs;
+    let px1 = uvs[0] + (uvs[2] - uvs[0]) * progressX;
+    let px2 = uvs[4] + (uvs[6] - uvs[4]) * progressX;
+    let py1 = uvs[1] + (uvs[3] - uvs[1]) * progressX;
+    let py2 = uvs[5] + (uvs[7] - uvs[5]) * progressX;
+    let uv = data[offset];
+    uv.u = px1 + (px2 - px1) * progressY;
+    uv.v = py1 + (py2 - py1) * progressY;
+}
+
+module.exports = {
+    createData (sprite) {
+        return sprite.requestRenderData();
+    },
 
     updateRenderData (sprite) {
-        super.updateRenderData(sprite);
-
+        let renderData = sprite._renderData;
         let frame = sprite.spriteFrame;
-        if (!frame) return;
-        this.packToDynamicAtlas(sprite, frame);
+        if (!renderData || !frame) return;
+        if (!renderData.vertDirty && !renderData.uvDirty) return;
+        let data = renderData._data;
 
-        if (sprite._vertsDirty) {
-            let fillStart = sprite._fillStart;
-            let fillRange = sprite._fillRange;
-            if (fillRange < 0) {
-                fillStart += fillRange;
-                fillRange = -fillRange;
-            }
+        packToDynamicAtlas(sprite, frame);
 
-            //do round fill start [0,1), include 0, exclude 1
-            while (fillStart >= 1.0) fillStart -= 1.0;
-            while (fillStart < 0.0) fillStart += 1.0;
+        let fillStart = sprite._fillStart;
+        let fillRange = sprite._fillRange;
 
-            fillStart *= PI_2;
-            fillRange *= PI_2;
-
-            //build vertices
-            _calculateVertices(sprite);
-            //build uvs
-            _calculateUVs(frame);
-
-            _calcInsectedPoints(_vertices[0], _vertices[2], _vertices[1], _vertices[3], _center, fillStart, _intersectPoint_1);
-            _calcInsectedPoints(_vertices[0], _vertices[2], _vertices[1], _vertices[3], _center, fillStart + fillRange, _intersectPoint_2);
-
-            this.updateVerts(sprite, fillStart, fillRange);
-
-            sprite._vertsDirty = false;
+        if (fillRange < 0) {
+            fillStart += fillRange;	
+            fillRange = -fillRange;
         }
-    }
 
-    updateVerts (sprite, fillStart, fillRange) {
+        //do round fill start [0,1), include 0, exclude 1
+        while (fillStart >= 1.0) fillStart -= 1.0;
+        while (fillStart < 0.0) fillStart += 1.0;
+
+        fillStart *= PI_2;
+        fillRange *= PI_2;
         let fillEnd = fillStart + fillRange;
-        
-        let local = this._local;
+
+        //build vertices
+        _calculateVertices(sprite);
+        //build uvs
+        _calculateUVs(frame);
+
+        _calcInsectedPoints(_vertices[0], _vertices[2], _vertices[1], _vertices[3], _center, fillStart, _intersectPoint_1);
+        _calcInsectedPoints(_vertices[0], _vertices[2], _vertices[1], _vertices[3], _center, fillStart + fillRange, _intersectPoint_2);
 
         let offset = 0;
-        let floatsPerTriangle = 3 * this.floatsPerVert;
         for (let triangleIndex = 0; triangleIndex < 4; ++triangleIndex) {
             let triangle = _triangles[triangleIndex];
             if (!triangle) {
@@ -224,9 +255,9 @@ export default class RadialFilledAssembler extends Assembler2D {
             }
             //all in
             if (fillRange >= PI_2) {
-                local.length = offset + floatsPerTriangle;
-                this._generateTriangle(local, offset, _center, _vertPos[triangle[0]], _vertPos[triangle[1]]);
-                offset += floatsPerTriangle;
+                renderData.dataLength = offset + 3;
+                _generateTriangle(data, offset, _center, _vertPos[triangle[0]], _vertPos[triangle[1]]);
+                offset += 3;
                 continue;
             }
             //test against
@@ -240,29 +271,29 @@ export default class RadialFilledAssembler extends Assembler2D {
                 if (startAngle >= fillEnd) {
                     //all out
                 } else if (startAngle >= fillStart) {
-                    local.length = offset + floatsPerTriangle;
+                    renderData.dataLength = offset + 3;
                     if (endAngle >= fillEnd) {
                         //startAngle to fillEnd
-                        this._generateTriangle(local, offset, _center, _vertPos[triangle[0]], _intersectPoint_2[triangleIndex]);
+                        _generateTriangle(data, offset, _center, _vertPos[triangle[0]], _intersectPoint_2[triangleIndex]);
                     } else {
                         //startAngle to endAngle
-                        this._generateTriangle(local, offset, _center, _vertPos[triangle[0]], _vertPos[triangle[1]]);
+                        _generateTriangle(data, offset, _center, _vertPos[triangle[0]], _vertPos[triangle[1]]);
                     }
-                    offset += floatsPerTriangle;
+                    offset += 3;
                 } else {
                     //startAngle < fillStart
                     if (endAngle <= fillStart) {
                         //all out
                     } else if (endAngle <= fillEnd) {
-                        local.length = offset + floatsPerTriangle;
+                        renderData.dataLength = offset + 3;
                         //fillStart to endAngle
-                        this._generateTriangle(local, offset, _center, _intersectPoint_1[triangleIndex], _vertPos[triangle[1]]);
-                        offset += floatsPerTriangle;
+                        _generateTriangle(data, offset, _center, _intersectPoint_1[triangleIndex], _vertPos[triangle[1]]);
+                        offset += 3;
                     } else {
-                        local.length = offset + floatsPerTriangle;
+                        renderData.dataLength = offset + 3;
                         //fillStart to fillEnd
-                        this._generateTriangle(local, offset, _center, _intersectPoint_1[triangleIndex], _intersectPoint_2[triangleIndex]);
-                        offset += floatsPerTriangle;
+                        _generateTriangle(data, offset, _center, _intersectPoint_1[triangleIndex], _intersectPoint_2[triangleIndex]);
+                        offset += 3;
                     }
                 }
                 //add 2 * PI
@@ -271,96 +302,25 @@ export default class RadialFilledAssembler extends Assembler2D {
             }
         }
 
-        this.allocWorldVerts(sprite);
-        this.updateWorldVerts(sprite);
-    }
+        renderData.indiceCount = renderData.vertexCount = offset;
+        renderData.vertDirty = renderData.uvDirty = false;
+    },
 
-    allocWorldVerts(sprite) {
-        let color = sprite.node._color._val;
-        let renderData = this._renderData;
-        let floatsPerVert = this.floatsPerVert;
+    fillBuffers (comp, renderer) {
+        let node = comp.node,
+            color = node._color._val,
+            buffer = renderer._meshBuffer,
+            renderData = comp._renderData;
 
-        let local = this._local;
-        let verticesCount = local.length / floatsPerVert;
-        this.verticesCount = this.indicesCount = verticesCount;
+        let offsetInfo = fillVertices(node, buffer, renderData, color);
 
-        let flexBuffer = renderData._flexBuffer;
-        if (flexBuffer.reserve(verticesCount, verticesCount)) {
-            let iData = renderData.iDatas[0];
-            for (let i = 0; i < verticesCount; i ++) {
-                iData[i] = i;
-            }
+        let indiceOffset = offsetInfo.indiceOffset,
+            vertexId = offsetInfo.vertexOffset;
+
+        // buffer data may be realloc, need get reference after request.
+        let ibuf = buffer._iData;
+        for (let i = 0; i < renderData.dataLength; i++) {
+            ibuf[indiceOffset + i] = vertexId + i;
         }
-        flexBuffer.used(this.verticesCount, this.indicesCount);
-
-        let verts = renderData.vDatas[0],
-            uintVerts = renderData.uintVDatas[0];
-        
-        let uvOffset = this.uvOffset;
-        for (let offset = 0; offset < local.length; offset += floatsPerVert) {
-            let start = offset + uvOffset;
-            verts[start] = local[start];
-            verts[start + 1] = local[start + 1];
-            uintVerts[start + 2] = color;
-        }
-    }
-
-    updateWorldVerts (sprite) {
-        let node = sprite.node;
-
-        let matrix = node._worldMatrix;
-        let matrixm = matrix.m,
-            a = matrixm[0], b = matrixm[1], c = matrixm[4], d = matrixm[5],
-            tx = matrixm[12], ty = matrixm[13];
-
-        let local = this._local;
-        let world = this._renderData.vDatas[0];
-        let floatsPerVert = this.floatsPerVert;
-        for (let offset = 0; offset < local.length; offset += floatsPerVert) {
-            let x = local[offset];
-            let y = local[offset + 1];
-            world[offset] = x * a + y * c + tx;
-            world[offset+1] = x * b + y * d + ty;
-        }
-    }
-
-    _generateTriangle (verts, offset, vert0, vert1, vert2) {
-        let vertices = _vertices;
-        let v0x = vertices[0];
-        let v0y = vertices[1];
-        let v1x = vertices[2];
-        let v1y = vertices[3];
-
-        let floatsPerVert = this.floatsPerVert;
-        verts[offset] = vert0.x;
-        verts[offset + 1] = vert0.y;
-        verts[offset + floatsPerVert] = vert1.x;
-        verts[offset + floatsPerVert + 1] = vert1.y;
-        verts[offset + floatsPerVert*2] = vert2.x;
-        verts[offset + floatsPerVert*2 + 1] = vert2.y;
-
-        let uvOffset = this.uvOffset;
-        let progressX, progressY;
-        progressX = (vert0.x - v0x) / (v1x - v0x);
-        progressY = (vert0.y - v0y) / (v1y - v0y);
-        this._generateUV(progressX, progressY, verts, offset + uvOffset);
-
-        progressX = (vert1.x - v0x) / (v1x - v0x);
-        progressY = (vert1.y - v0y) / (v1y - v0y);
-        this._generateUV(progressX, progressY, verts, offset + floatsPerVert + uvOffset);
-
-        progressX = (vert2.x - v0x) / (v1x - v0x);
-        progressY = (vert2.y - v0y) / (v1y - v0y);
-        this._generateUV(progressX, progressY, verts, offset + floatsPerVert*2 + uvOffset);
-    }
-
-    _generateUV (progressX, progressY, verts, offset) {
-        let uvs = _uvs;
-        let px1 = uvs[0] + (uvs[2] - uvs[0]) * progressX;
-        let px2 = uvs[4] + (uvs[6] - uvs[4]) * progressX;
-        let py1 = uvs[1] + (uvs[3] - uvs[1]) * progressX;
-        let py2 = uvs[5] + (uvs[7] - uvs[5]) * progressX;
-        verts[offset] = px1 + (px2 - px1) * progressY;
-        verts[offset + 1] = py1 + (py2 - py1) * progressY;
-    }
-}
+    },
+};

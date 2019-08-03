@@ -1359,24 +1359,24 @@ Default value must be initialized at their declaration:
   type: cc.Integer
   default: 0  // <--
 })
-myProp;
+value;
 // After:
 @property({
   type: cc.Integer
 })
-myProp = 0;    // <--
+value = 0;    // <--
 ```
 
 ### 3654
 
-Please specifiy a default value for "%s.%s" at its declaration:
+Please specifiy a default value for "%s" property at its declaration:
 ```
 // Before:
 @property(...)
-myProp;
+value; 
 // After:
 @property(...)
-myProp = 0;
+value = 0
 ```
 
 ### 3655
@@ -1911,11 +1911,12 @@ Invalid type of %s.%s
 
 ### 5509
 
+<!-- DEPRECATED -->
 The 'type' attribute of '%s.%s' must be child class of cc.Asset, otherwise you should use 'url: %s' instead
 
 ### 5510
 
-The 'type' attribute of '%s.%s' can not be 'Number', use cc.Float or cc.Integer instead please.
+The 'type' attribute of '%s.%s' can not be 'Number', use 'Float' or 'Integer' instead please.
 
 ### 5511
 

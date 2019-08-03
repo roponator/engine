@@ -23,8 +23,6 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-import Assembler from '../../cocos2d/core/renderer/assembler';
-
 const Armature = require('./ArmatureDisplay');
 const RenderFlow = require('../../cocos2d/core/renderer/render-flow');
 const Material = require('../../cocos2d/core/assets/material/CCMaterial');
@@ -75,7 +73,7 @@ function _getSlotMaterial (tex, blendMode) {
     let useModel = !_comp.enableBatch;
     // Add useModel flag due to if pre same db useModel but next db no useModel,
     // then next db will multiply model matrix more than once.
-    let key = tex.getId() + src + dst + useModel;
+    let key = tex.url + src + dst + useModel;
     let baseMaterial = _comp.sharedMaterials[0];
     if (!baseMaterial) {
         return null;
@@ -92,11 +90,12 @@ function _getSlotMaterial (tex, blendMode) {
             material.copy(baseMaterial);
         }
 
-        material.define('CC_USE_MODEL', useModel);
+        material.define('_USE_MODEL', useModel);
         material.setProperty('texture', tex);
 
         // update blend function
-        material.effect.setBlend(
+        let pass = material.effect.getDefaultTechnique().passes[0];
+        pass.setBlend(
             true,
             gfx.BLEND_FUNC_ADD,
             src, dst,
@@ -122,8 +121,9 @@ function _handleColor (color, parentOpacity) {
     _c = ((_a<<24) >>> 0) + (_b<<16) + (_g<<8) + _r;
 }
 
-export default class ArmatureAssembler extends Assembler {
-    updateRenderData (comp, batchData) {}
+let armatureAssembler = {
+
+    updateRenderData (comp, batchData) {},
 
     realTimeTraverse (armature, parentMat, parentOpacity) {
         let slots = armature._slots;
@@ -133,7 +133,6 @@ export default class ArmatureAssembler extends Assembler {
         let slotColor;
         let slot;
         let slotMat;
-        let slotMatm;
         let offsetInfo;
 
         for (let i = 0, l = slots.length; i < l; i++) {
@@ -167,7 +166,6 @@ export default class ArmatureAssembler extends Assembler {
 
             _handleColor(slotColor, parentOpacity);
             slotMat = slot._worldMatrix;
-            slotMatm = slotMat.m;
 
             vertices = slot._localVertices;
             _vertexCount = vertices.length >> 2;
@@ -183,12 +181,12 @@ export default class ArmatureAssembler extends Assembler {
             ibuf = _buffer._iData;
             uintbuf = _buffer._uintVData;
 
-            _m00 = slotMatm[0];
-            _m04 = slotMatm[4];
-            _m12 = slotMatm[12];
-            _m01 = slotMatm[1];
-            _m05 = slotMatm[5];
-            _m13 = slotMatm[13];
+            _m00 = slotMat.m00;
+            _m04 = slotMat.m04;
+            _m12 = slotMat.m12;
+            _m01 = slotMat.m01;
+            _m05 = slotMat.m05;
+            _m13 = slotMat.m13;
 
             for (let vi = 0, vl = vertices.length; vi < vl;) {
                 _x = vertices[vi++]; 
@@ -206,7 +204,7 @@ export default class ArmatureAssembler extends Assembler {
                 ibuf[_indexOffset++] = _vertexOffset + indices[ii];
             }
         }
-    }
+    },
 
     cacheTraverse (frame, parentMat) {
         if (!frame) return;
@@ -222,13 +220,12 @@ export default class ArmatureAssembler extends Assembler {
         
         let frameVFOffset = 0, frameIndexOffset = 0, segVFCount = 0;
         if (parentMat) {
-            let parentMatm = parentMat.m;
-            _m00 = parentMatm[0];
-            _m04 = parentMatm[4];
-            _m12 = parentMatm[12];
-            _m01 = parentMatm[1];
-            _m05 = parentMatm[5];
-            _m13 = parentMatm[13];
+            _m00 = parentMat.m00;
+            _m04 = parentMat.m04;
+            _m12 = parentMat.m12;
+            _m01 = parentMat.m01;
+            _m05 = parentMat.m05;
+            _m13 = parentMat.m13;
         }
 
         let colorOffset = 0;
@@ -296,7 +293,7 @@ export default class ArmatureAssembler extends Assembler {
                 uintbuf[ii] = _c;
             }
         }
-    }
+    },
 
     fillBuffers (comp, renderer) {
         comp.node._renderFlag |= RenderFlow.FLAG_UPDATE_RENDER_DATA;
@@ -366,6 +363,6 @@ export default class ArmatureAssembler extends Assembler {
         _renderer = undefined;
         _comp = undefined;
     }
-}
+};
 
-Assembler.register(Armature, ArmatureAssembler);
+module.exports = Armature._assembler = armatureAssembler;

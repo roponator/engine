@@ -28,16 +28,12 @@ import gfx from '../../../renderer/gfx';
 let MeshBuffer = cc.Class({
     name: 'cc.MeshBuffer',
     ctor (batcher, vertexFormat) {
-        this.init (batcher, vertexFormat);
-    },
-
-    init (batcher, vertexFormat) {
+        this.byteStart = 0;
         this.byteOffset = 0;
-        this.indiceOffset = 0;
-        this.vertexOffset = 0;
         this.indiceStart = 0;
-
-        this._dirty = false;
+        this.indiceOffset = 0;
+        this.vertexStart = 0;
+        this.vertexOffset = 0;
 
         this._vertexFormat = vertexFormat;
         this._vertexBytes = this._vertexFormat._bytes;
@@ -101,10 +97,12 @@ let MeshBuffer = cc.Class({
     switchBuffer () {
         let offset = ++this._arrOffset;
 
+        this.byteStart = 0;
         this.byteOffset = 0;
+        this.vertexStart = 0;
         this.vertexOffset = 0;
-        this.indiceOffset = 0;
         this.indiceStart = 0;
+        this.indiceOffset = 0;
 
         if (offset < this._vbArr.length) {
             this._vb = this._vbArr[offset];
@@ -161,10 +159,7 @@ let MeshBuffer = cc.Class({
 
             this._reallocBuffer();
         }
-        this._updateOffset(vertexCount, indiceCount, byteOffset);
-    },
 
-    _updateOffset (vertexCount, indiceCount, byteOffset) {
         let offsetInfo = this._offsetInfo;
         offsetInfo.vertexOffset = this.vertexOffset;
         this.vertexOffset += vertexCount;
@@ -233,16 +228,17 @@ let MeshBuffer = cc.Class({
         this._vb = this._vbArr[0];
         this._ib = this._ibArr[0];
 
+        this.byteStart = 0;
         this.byteOffset = 0;
-        this.indiceOffset = 0;
-        this.vertexOffset = 0;
         this.indiceStart = 0;
+        this.indiceOffset = 0;
+        this.vertexStart = 0;
+        this.vertexOffset = 0;
 
         this._dirty = false;
     },
 
     destroy () {
-        this.reset();
         for (let i = 0; i <  this._vbArr.length; i++) {
             let vb = this._vbArr[i];
             vb.destroy();
@@ -257,10 +253,6 @@ let MeshBuffer = cc.Class({
 
         this._ib = null;
         this._vb = null;
-    },
-
-    forwardIndiceStartToOffset () {
-        this.indiceStart = this.indiceOffset;
     }
 });
 

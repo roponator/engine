@@ -44,11 +44,11 @@ module.exports = js.addon({
             appx = node.anchorX * width,
             appy = node.anchorY * height;
 
-        let verts = renderData.vertices;
-        verts[0].x = -appx;
-        verts[0].y = -appy;
-        verts[1].x = width - appx;
-        verts[1].y = height - appy;
+        let data = renderData._data;
+        data[0].x = -appx;
+        data[0].y = -appy;
+        data[1].x = width - appx;
+        data[1].y = height - appy;
     },
 
     _updateTexture (comp) {
@@ -61,9 +61,8 @@ module.exports = js.addon({
         let node = comp.node;
         // Transform
         let matrix = node._worldMatrix;
-        let matrixm = matrix.m;
-        let a = matrixm[0], b = matrixm[1], c = matrixm[4], d = matrixm[5],
-            tx = matrixm[12], ty = matrixm[13];
+        let a = matrix.m00, b = matrix.m01, c = matrix.m04, d = matrix.m05,
+            tx = matrix.m12, ty = matrix.m13;
         ctx.transform(a, b, c, d, tx, ty);
         ctx.scale(1, -1);
 
@@ -73,14 +72,14 @@ module.exports = js.addon({
         utils.context.setGlobalAlpha(ctx, node.opacity / 255);
 
         let tex = comp._frame._texture,
-            verts = comp._renderData.vertices;
+            data = comp._renderData._data;
 
         let image = tex.getHtmlElementObj();
 
-        let x = verts[0].x;
-        let y = verts[0].y;
-        let w = verts[1].x - x;
-        let h = verts[1].y - y;
+        let x = data[0].x;
+        let y = data[0].y;
+        let w = data[1].x - x;
+        let h = data[1].y - y;
         y = - y - h;
 
         ctx.drawImage(image, x, y, w, h);

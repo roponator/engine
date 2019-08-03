@@ -55,9 +55,6 @@ var idGenerater = new (require('../platform/id-generater'))('Tex');
  * @extends Asset
  */
 
-// define a specified number for the pixel format which gfx do not have a standard definition.
-let CUSTOM_PIXEL_FORMAT = 1024;
-
 /**
  * The texture pixel format, default value is RGBA8888, 
  * you should note that textures loaded by normal image files (png, jpg) can only support RGBA8888 format,
@@ -144,15 +141,6 @@ const PixelFormat = cc.Enum({
      */
     RGBA_PVRTC_2BPPV1: gfx.TEXTURE_FMT_RGBA_PVRTC_2BPPV1,
     /**
-     * rgb separate a 2 bpp pvrtc
-     * RGB_A_PVRTC_2BPPV1 texture is a 2x height RGB_PVRTC_2BPPV1 format texture.
-     * It separate the origin alpha channel to the bottom half atlas, the origin rgb channel to the top half atlas
-     * @property RGB_A_PVRTC_2BPPV1
-     * @readonly
-     * @type {Number}
-     */
-    RGB_A_PVRTC_2BPPV1: CUSTOM_PIXEL_FORMAT++,
-    /**
      * rgb 4 bpp pvrtc
      * @property RGB_PVRTC_4BPPV1
      * @readonly
@@ -167,15 +155,6 @@ const PixelFormat = cc.Enum({
      */
     RGBA_PVRTC_4BPPV1: gfx.TEXTURE_FMT_RGBA_PVRTC_4BPPV1,
     /**
-     * rgb a 4 bpp pvrtc
-     * RGB_A_PVRTC_4BPPV1 texture is a 2x height RGB_PVRTC_4BPPV1 format texture.
-     * It separate the origin alpha channel to the bottom half atlas, the origin rgb channel to the top half atlas
-     * @property RGB_A_PVRTC_4BPPV1
-     * @readonly
-     * @type {Number}
-     */
-    RGB_A_PVRTC_4BPPV1: CUSTOM_PIXEL_FORMAT++,
-    /**
      * rgb etc1
      * @property RGB_ETC1
      * @readonly
@@ -188,7 +167,8 @@ const PixelFormat = cc.Enum({
      * @readonly
      * @type {Number}
      */
-    RGBA_ETC1: CUSTOM_PIXEL_FORMAT++,
+    // gfx do not have a standard definition for RGBA_ETC1, need define a specified number for it.
+    RGBA_ETC1: 1024,
 
     /**
      * rgb etc2
@@ -489,7 +469,7 @@ var Texture2D = cc.Class({
         if (!element)
             return;
         this._image = element;
-        if (element.complete || element instanceof HTMLCanvasElement) {
+        if (CC_WECHATGAME || CC_QQPLAY || element.complete || element instanceof HTMLCanvasElement) {
             this.handleLoadedTexture();
         }
         else {
@@ -526,7 +506,10 @@ var Texture2D = cc.Class({
         opts.magFilter = FilterIndex[this._magFilter];
         opts.wrapS = this._wrapS;
         opts.wrapT = this._wrapT;
-        opts.format = this._getGFXPixelFormat(pixelFormat);
+        opts.format = pixelFormat;
+        if (pixelFormat === PixelFormat.RGBA_ETC1) {
+            opts.format = PixelFormat.RGB_ETC1;
+        }
         opts.width = pixelsWidth;
         opts.height = pixelsHeight;
         if (!this._texture) {
@@ -627,7 +610,10 @@ var Texture2D = cc.Class({
         opts.width = this.width;
         opts.height = this.height;
         opts.hasMipmap = this._hasMipmap;
-        opts.format = this._getGFXPixelFormat(this._format);
+        opts.format = this._format;
+        if (this._format === PixelFormat.RGBA_ETC1) {
+            opts.format = PixelFormat.RGB_ETC1;
+        }
         opts.premultiplyAlpha = this._premultiplyAlpha;
         opts.flipY = this._flipY;
         opts.minFilter = FilterIndex[this._minFilter];
@@ -768,19 +754,6 @@ var Texture2D = cc.Class({
         opts.wrapS = this._wrapS;
         opts.wrapT = this._wrapT;
         return opts;
-    },
-
-    _getGFXPixelFormat (format) {
-        if (format === PixelFormat.RGBA_ETC1) {
-            format = PixelFormat.RGB_ETC1;
-        }
-        else if (format === PixelFormat.RGB_A_PVRTC_4BPPV1) {
-            format = PixelFormat.RGB_PVRTC_4BPPV1;
-        }
-        else if (format === PixelFormat.RGB_A_PVRTC_2BPPV1) {
-            format = PixelFormat.RGB_PVRTC_2BPPV1;
-        }
-        return format;
     },
 
     _resetUnderlyingMipmaps(mipmapSources) {

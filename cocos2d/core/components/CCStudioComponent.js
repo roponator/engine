@@ -244,7 +244,7 @@ var StudioComponent = cc.Class({
         sliderProgress: {
             default: 0.5,
             readonly: true,
-            type: cc.Float,
+            type: 'Float',
             range: [0, 1, 0.1]
         },
 

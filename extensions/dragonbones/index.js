@@ -149,7 +149,7 @@ if (_global.dragonBones !== undefined) {
 
     if (!CC_EDITOR || !Editor.isMainProcess) {
 
-        if (!CC_JSB && !CC_NATIVERENDERER) {
+        if (!CC_JSB) {
             require('./CCFactory');
             require('./CCSlot');
             require('./CCTextureData');

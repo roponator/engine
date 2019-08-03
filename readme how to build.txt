@@ -2,6 +2,10 @@ general links:
 https://github.com/cocos-creator/engine
 https://docs.cocos.com/creator/manual/en/advanced-topics/engine-customization.html
 
+Note: currently using the 2.1.2 vanilla engine from the cocos creator download folder
+but with modified calls to some audio function (0 to 0.001 param fix) because of Edge and IE.
+Some files may be from the latest version of cocos git repo but I overwrote others with old ones
+since newest one had issues when making the game build.
 
 1) install node
 https://nodejs.org/en/

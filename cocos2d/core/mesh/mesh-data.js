@@ -101,7 +101,7 @@ export let Primitive = cc.Class({
          */
         vertexBundleIndices: {
             default: [],
-            type: cc.Float
+            type: Number
         },
         /**
          * The data range of the primitive.
@@ -124,16 +124,3 @@ export let Primitive = cc.Class({
         topology: gfx.PT_TRIANGLES
     }
 });
-
-export function MeshData () {
-    this.vData = null;
-    this.uintVData = null;
-    this.iData = null;
-    this.vfm = null;
-    this.offset = 0;
-
-    this.vb = null;
-    this.ib = null;
-    this.vDirty = false;
-    this.iDirty = false;
-}

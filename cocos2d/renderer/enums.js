@@ -1,7 +1,5 @@
 // Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
-import { typeParams } from './build/mappings'
-
 export default {
   // projection
   PROJ_PERSPECTIVE: 0,
@@ -11,7 +9,6 @@ export default {
   LIGHT_DIRECTIONAL: 0,
   LIGHT_POINT: 1,
   LIGHT_SPOT: 2,
-  LIGHT_AMBIENT: 3,
 
   // shadows
   SHADOW_NONE: 0,
@@ -19,19 +16,21 @@ export default {
   SHADOW_SOFT: 2,
 
   // parameter type
-  PARAM_INT:             typeParams.INT,
-  PARAM_INT2:            typeParams.IVEC2,
-  PARAM_INT3:            typeParams.IVEC3,
-  PARAM_INT4:            typeParams.IVEC4,
-  PARAM_FLOAT:           typeParams.FLOAT,
-  PARAM_FLOAT2:          typeParams.VEC2,
-  PARAM_FLOAT3:          typeParams.VEC3,
-  PARAM_FLOAT4:          typeParams.VEC4,
-  PARAM_MAT2:           typeParams.MAT2,
-  PARAM_MAT3:           typeParams.MAT3,
-  PARAM_MAT4:           typeParams.MAT4,
-  PARAM_TEXTURE_2D:     typeParams.SAMPLER2D,
-  PARAM_TEXTURE_CUBE:   typeParams.SAMPLERCUBE,
+  PARAM_INT:             0,
+  PARAM_INT2:            1,
+  PARAM_INT3:            2,
+  PARAM_INT4:            3,
+  PARAM_FLOAT:           4,
+  PARAM_FLOAT2:          5,
+  PARAM_FLOAT3:          6,
+  PARAM_FLOAT4:          7,
+  PARAM_COLOR3:          8,
+  PARAM_COLOR4:          9,
+  PARAM_MAT2:           10,
+  PARAM_MAT3:           11,
+  PARAM_MAT4:           12,
+  PARAM_TEXTURE_2D:     13,
+  PARAM_TEXTURE_CUBE:   14,
 
   // clear flags
   CLEAR_COLOR: 1,

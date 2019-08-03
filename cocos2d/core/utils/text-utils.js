@@ -175,4 +175,4 @@ var textUtils = {
     },
 };
 
-cc.textUtils = module.exports = textUtils;
+module.exports = textUtils;

@@ -25,7 +25,7 @@
 
 'use strict';
 
-cc.Graphics.earcut = module.exports = earcut;
+module.exports = earcut;
 
 function earcut(data, holeIndices, dim) {
 

@@ -424,8 +424,7 @@ export default class Light {
       case enums.LIGHT_POINT:
         _computePointLightViewProjMatrix(this, out._matView, out._matProj);
         break;
-      case enums.LIGHT_AMBIENT:
-        break;
+
       default:
         console.warn('shadow of this light type is not supported');
     }
@@ -447,10 +446,9 @@ export default class Light {
     vec3.transformMat3(_transformedLightDirection, _forward, _m3_tmp);
     vec3.array(this._directionUniform, _transformedLightDirection);
     let pos = this._positionUniform;
-    let m = _m4_tmp.m;
-    pos[0] = m[12];
-    pos[1] = m[13];
-    pos[2] = m[14];
+    pos[0] = _m4_tmp.m12;
+    pos[1] = _m4_tmp.m13;
+    pos[2] = _m4_tmp.m14;
   }
 
   _generateShadowMap(device) {

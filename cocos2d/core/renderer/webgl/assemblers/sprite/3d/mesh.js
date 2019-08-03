@@ -23,24 +23,23 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-const spriteAssembler = require('../sprite');
 const js = require('../../../../../platform/js');
-const assembler2D = require('../2d/mesh');
+const assembler = require('../2d/mesh');
 const fillVerticesWithoutCalc3D = require('../../utils').fillVerticesWithoutCalc3D;
 
 const vec3 = cc.vmath.vec3;
 let vec3_temp = vec3.create();
 
-module.exports = spriteAssembler.mesh3D = js.addon({
+module.exports = js.addon({
     updateWorldVerts (sprite) {
         let node = sprite.node,
             renderData = sprite._renderData,
-            verts = renderData.vertices;
+            data = renderData._data;
 
         let matrix = node._worldMatrix;
         for (let i = 0, l = renderData.vertexCount; i < l; i++) {
-            let local = verts[i + l];
-            let world = verts[i];
+            let local = data[i + l];
+            let world = data[i];
             vec3.set(vec3_temp, local.x, local.y, 0);
             vec3.transformMat4(world, vec3_temp, matrix);
         }
@@ -71,4 +70,4 @@ module.exports = spriteAssembler.mesh3D = js.addon({
             ibuf[indiceOffset++] = vertexId + triangles[i];
         }
     },
-}, assembler2D);
+}, assembler);

@@ -1,4 +1,4 @@
-﻿/****************************************************************************
+/****************************************************************************
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
@@ -27,170 +27,88 @@
 const js = require('./js');
 const fastRemoveAt = js.array.fastRemoveAt;
 
-function empty () {}
-
-function CallbackInfo () {
-    this.callback = empty;
-    this.target = undefined;
-    this.once = false;
-}
-
-CallbackInfo.prototype.set = function (callback, target, once) {
-    this.callback = callback;
-    this.target = target;
-    this.once = !!once;
-};
-
-let callbackInfoPool = new js.Pool(function (info) {
-    info.callback = empty;
-    info.target = undefined;
-    info.once = false;
-    return true;
-}, 32);
-
-callbackInfoPool.get = function () {
-    return this._get() || new CallbackInfo();
-};
-
 function CallbackList () {
-    this.callbackInfos = [];
+    this.callbacks = [];
+    this.targets = [];      // same length with callbacks, nullable
     this.isInvoking = false;
     this.containCanceled = false;
 }
+var proto = CallbackList.prototype;
 
-let proto = CallbackList.prototype;
-
-/**
- * !#zh
- * 从列表中移除与指定目标相同回调函数的事件。
- * @param cb
- */
-proto.removeByCallback = function (cb) {
-    for (let i = 0; i < this.callbackInfos.length; ++i) {
-        let info = this.callbackInfos[i];
-        if (info && info.callback === cb) {
-            callbackInfoPool.put(info);
-            fastRemoveAt(this.callbackInfos, i);
+proto.removeBy = function (array, value) {
+    var callbacks = this.callbacks;
+    var targets = this.targets;
+    for (var i = 0; i < array.length; ++i) {
+        if (array[i] === value) {
+            fastRemoveAt(callbacks, i);
+            fastRemoveAt(targets, i);
             --i;
         }
     }
 };
 
-/**
- * !#zh
- * 从列表中移除与指定目标相同调用者的事件。
- * @param target
- */
-proto.removeByTarget = function (target) {
-    for (let i = 0; i < this.callbackInfos.length; ++i) {
-        const info = this.callbackInfos[i];
-        if (info && info.target === target) {
-            callbackInfoPool.put(info);
-            fastRemoveAt(this.callbackInfos, i);
-            --i;
-        }
-    }
-};
-
-/**
- * !#zh
- * 移除指定编号事件。
- *
- * @param index
- */
 proto.cancel = function (index) {
-    const info = this.callbackInfos[index];
-    if (info) {
-        callbackInfoPool.put(info);
-        this.callbackInfos[index] = null;
-    }
+    this.callbacks[index] = this.targets[index] = null;
     this.containCanceled = true;
 };
 
-/**
- * !#zh
- * 注销所有事件。
- */
 proto.cancelAll = function () {
-    for (let i = 0; i < this.callbackInfos.length; i++) {
-        const info = this.callbackInfos[i];
-        if (info) {
-            callbackInfoPool.put(info);
-            this.callbackInfos[i] = null;
-        }
+    let callbacks = this.callbacks;
+    let targets = this.targets;
+    for (let i = 0; i < callbacks.length; i++) {
+        callbacks[i] = targets[i] = null;
     }
     this.containCanceled = true;
 };
 
 // filter all removed callbacks and compact array
 proto.purgeCanceled = function () {
-    for (let i = this.callbackInfos.length - 1; i >= 0; --i) {
-        const info = this.callbackInfos[i];
-        if (!info) {
-            fastRemoveAt(this.callbackInfos, i);
-        }
-    }
+    this.removeBy(this.callbacks, null);
     this.containCanceled = false;
 };
 
-proto.clear = function () {
-    this.cancelAll();
-    this.callbackInfos.length = 0;
-    this.isInvoking = false;
-    this.containCanceled = false;
-};
 
 const MAX_SIZE = 16;
-let callbackListPool = new js.Pool(function (info) {
-    info.callback = empty;
-    info.target = undefined;
-    info.once = false;
-    return true;
+const callbackListPool = new js.Pool(function (list) {
+    list.callbacks.length = 0;
+    list.targets.length = 0;
+    list.isInvoking = false;
+    list.containCanceled = false;
 }, MAX_SIZE);
-
 callbackListPool.get = function () {
     return this._get() || new CallbackList();
 };
 
 /**
- * !#en The callbacks invoker to handle and invoke callbacks by key.
- * !#zh CallbacksInvoker 用来根据 Key 管理并调用回调方法。
- * @class CallbacksInvoker
+ * The CallbacksHandler is an abstract class that can register and unregister callbacks by key.
+ * Subclasses should implement their own methods about how to invoke the callbacks.
+ * @class _CallbacksHandler
+ *
+ * @private
  */
-function CallbacksInvoker () {
+function CallbacksHandler () {
     this._callbackTable = js.createMap(true);
 }
-
-proto = CallbacksInvoker.prototype;
+proto = CallbacksHandler.prototype;
 
 /**
- * !#zh
- * 事件添加管理
- *
- * @param key
- * @param callback
- * @param target
- * @param once
+ * @method add
+ * @param {String} key
+ * @param {Function} callback
+ * @param {Object} [target] - can be null
  */
-proto.on = function (key, callback, target, once) {
-    let list = this._callbackTable[key];
+proto.add = function (key, callback, target) {
+    var list = this._callbackTable[key];
     if (!list) {
         list = this._callbackTable[key] = callbackListPool.get();
     }
-    let info = callbackInfoPool.get();
-    info.set(callback, target, once);
-    list.callbackInfos.push(info);
+    list.callbacks.push(callback);
+    list.targets.push(target || null);
 };
 
 /**
- *
- * !#zh
- * 检查指定事件是否已注册回调。
- *
- * !#en
  * Check if the specified key has any registered callback. If a callback is also specified,
  * it will only return true if the callback is registered.
- *
  * @method hasEventListener
  * @param {String} key
  * @param {Function} [callback]
@@ -198,31 +116,32 @@ proto.on = function (key, callback, target, once) {
  * @return {Boolean}
  */
 proto.hasEventListener = function (key, callback, target) {
-    const list = this._callbackTable[key];
+    var list = this._callbackTable[key];
     if (!list) {
         return false;
     }
 
     // check any valid callback
-    const infos = list.callbackInfos;
+    var callbacks = list.callbacks;
     if (!callback) {
         // Make sure no cancelled callbacks
         if (list.isInvoking) {
-            for (let i = 0; i < infos.length; ++i) {
-                if (infos[i]) {
+            for (let i = 0; i < callbacks.length; i++) {
+                if (callbacks[i]) {
                     return true;
                 }
             }
             return false;
         }
         else {
-            return infos.length > 0;
+            return callbacks.length > 0;
         }
     }
 
-    for (let i = 0; i < infos.length; ++i) {
-        const info = infos[i];
-        if (info && info.callback === callback && info.target === target) {
+    target = target || null;
+    var targets = list.targets;
+    for (let i = 0; i < callbacks.length; ++i) {
+        if (callbacks[i] === callback && targets[i] === target) {
             return true;
         }
     }
@@ -230,10 +149,6 @@ proto.hasEventListener = function (key, callback, target) {
 };
 
 /**
- * !#zh
- * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
- *
- * !#en
  * Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
  * @method removeAll
  * @param {String|Object} keyOrTarget - The event key to be removed or the target to be removed
@@ -241,13 +156,12 @@ proto.hasEventListener = function (key, callback, target) {
 proto.removeAll = function (keyOrTarget) {
     if (typeof keyOrTarget === 'string') {
         // remove by key
-        const list = this._callbackTable[keyOrTarget];
+        let list = this._callbackTable[keyOrTarget];
         if (list) {
             if (list.isInvoking) {
                 list.cancelAll();
             }
             else {
-                list.clear();
                 callbackListPool.put(list);
                 delete this._callbackTable[keyOrTarget];
             }
@@ -255,46 +169,43 @@ proto.removeAll = function (keyOrTarget) {
     }
     else if (keyOrTarget) {
         // remove by target
-        for (const key in this._callbackTable) {
-            const list = this._callbackTable[key];
+        for (let key in this._callbackTable) {
+            let list = this._callbackTable[key];
             if (list.isInvoking) {
-                const infos = list.callbackInfos;
-                for (let i = 0; i < infos.length; ++i) {
-                    const info = infos[i];
-                    if (info && info.target === keyOrTarget) {
+                let targets = list.targets;
+                for (let i = 0; i < targets.length; ++i) {
+                    if (targets[i] === keyOrTarget) {
                         list.cancel(i);
                     }
                 }
             }
             else {
-                list.removeByTarget(keyOrTarget);
+                list.removeBy(list.targets, keyOrTarget);
             }
         }
     }
 };
 
 /**
- * !#zh
- * 删除之前与同类型，回调，目标注册的回调。
- *
- * @method off
+ * @method remove
  * @param {String} key
  * @param {Function} callback
  * @param {Object} [target]
  */
-proto.off = function (key, callback, target) {
-    const list = this._callbackTable[key];
+proto.remove = function (key, callback, target) {
+    var list = this._callbackTable[key];
     if (list) {
-        const infos = list.callbackInfos;
-        for (let i = 0; i < infos.length; ++i) {
-            const info = infos[i];
-            if (info && info.callback === callback && info.target === target) {
+        target = target || null;
+        var callbacks = list.callbacks;
+        var targets = list.targets;
+        for (var i = 0; i < callbacks.length; ++i) {
+            if (callbacks[i] === callback && targets[i] === target) {
                 if (list.isInvoking) {
                     list.cancel(i);
                 }
                 else {
-                    fastRemoveAt(infos, i);
-                    callbackInfoPool.put(info);
+                    fastRemoveAt(callbacks, i);
+                    fastRemoveAt(targets, i);
                 }
                 break;
             }
@@ -304,44 +215,47 @@ proto.off = function (key, callback, target) {
 
 
 /**
- * !#en
- * Trigger an event directly with the event name and necessary arguments.
- * !#zh
- * 通过事件名发送自定义事件
+ * !#en The callbacks invoker to handle and invoke callbacks by key.
+ * !#zh CallbacksInvoker 用来根据 Key 管理并调用回调方法。
+ * @class CallbacksInvoker
  *
- * @method emit
- * @param {String} key - event type
- * @param {*} [arg1] - First argument
- * @param {*} [arg2] - Second argument
- * @param {*} [arg3] - Third argument
- * @param {*} [arg4] - Fourth argument
- * @param {*} [arg5] - Fifth argument
- * @example
- *
- * eventTarget.emit('fire', event);
- * eventTarget.emit('fire', message, emitter);
+ * @extends _CallbacksHandler
  */
-proto.emit = function (key, arg1, arg2, arg3, arg4, arg5) {
-    const list = this._callbackTable[key];
+var CallbacksInvoker = function () {
+    CallbacksHandler.call(this);
+};
+js.extend(CallbacksInvoker, CallbacksHandler);
+
+if (CC_TEST) {
+    cc._Test.CallbacksInvoker = CallbacksInvoker;
+}
+
+/**
+ * @method invoke
+ * @param {String} key
+ * @param {any} [p1]
+ * @param {any} [p2]
+ * @param {any} [p3]
+ * @param {any} [p4]
+ * @param {any} [p5]
+ */
+CallbacksInvoker.prototype.invoke = function (key, p1, p2, p3, p4, p5) {
+    var list = this._callbackTable[key];
     if (list) {
-        const rootInvoker = !list.isInvoking;
+        var rootInvoker = !list.isInvoking;
         list.isInvoking = true;
 
-        const infos = list.callbackInfos;
-        for (let i = 0, len = infos.length; i < len; ++i) {
-            const info = infos[i];
-            if (info) {
-                let target = info.target;
-                let callback = info.callback;
-                if (info.once) {
-                    this.off(key, callback, target);
-                }
-
+        var callbacks = list.callbacks;
+        var targets = list.targets;
+        for (var i = 0, len = callbacks.length; i < len; ++i) {
+            var callback = callbacks[i];
+            if (callback) {
+                var target = targets[i];
                 if (target) {
-                    callback.call(target, arg1, arg2, arg3, arg4, arg5);
+                    callback.call(target, p1, p2, p3, p4, p5);
                 }
                 else {
-                    callback(arg1, arg2, arg3, arg4, arg5);
+                    callback(p1, p2, p3, p4, p5);
                 }
             }
         }
@@ -355,8 +269,5 @@ proto.emit = function (key, arg1, arg2, arg3, arg4, arg5) {
     }
 };
 
-if (CC_TEST) {
-    cc._Test.CallbacksInvoker = CallbacksInvoker;
-}
-
+CallbacksInvoker.CallbacksHandler = CallbacksHandler;
 module.exports = CallbacksInvoker;

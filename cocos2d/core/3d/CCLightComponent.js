@@ -24,23 +24,14 @@
  ****************************************************************************/
 // @ts-check
 import enums from '../../renderer/enums';
-let RendererLight = null;
-if (CC_JSB && CC_NATIVERENDERER) {
-    RendererLight = window.renderer.Light;
-} else {
-    RendererLight = require('../../renderer/scene/light');
-}
-
+import RendererLight from '../../renderer/scene/light';
 import { Color } from '../value-types';
 import { toRadian } from '../vmath';
-import mat4 from '../vmath/mat4';
 
 const renderer = require('../renderer/index');
 const Enum = require('../platform/CCEnum');
 const CCComponent = require('../components/CCComponent');
 const { ccclass, menu, inspector, property, executeInEditMode } = require('../platform/CCClassDecorator');
-
-let _mat4_temp = mat4.create();
 
 /**
  * !#en The light source type
@@ -54,34 +45,29 @@ const LightType = Enum({
      * !#en The direction of light
      *
      * !#zh 平行光
-     * @property {Number} DIRECTIONAL
+     * @property DIRECTIONAL
      * @readonly
+     * @type {Number}
      */
     DIRECTIONAL: 0,
     /**
      * !#en The point of light
      *
      * !#zh 点光源
-     * @property {Number} POINT
+     * @property POINT
      * @readonly
+     * @type {Number}
      */
     POINT: 1,
     /**
      * !#en The spot of light
      *
      * !#zh 聚光灯
-     * @property {Number} SPOT
+     * @property SPOT
      * @readonly
+     * @type {Number}
      */
     SPOT: 2,
-
-    /**
-     * !#en The ambient light
-     * !#zh 环境光
-     * @property {Number} AMBIENT
-     * @readonly
-     */
-    AMBIENT: 3
 });
 
 /**
@@ -143,7 +129,7 @@ export default class Light extends CCComponent {
     _intensity = 1;
 
     @property
-    _range = 1000;
+    _range = 1;
 
     @property
     _spotAngle = 60;
@@ -191,13 +177,10 @@ export default class Light extends CCComponent {
         this._type = val;
 
         let type = enums.LIGHT_DIRECTIONAL;
-        if (val === LightType.POINT) {
+        if (this._type === LightType.POINT) {
             type = enums.LIGHT_POINT;
-        } else if (val === LightType.SPOT) {
+        } else if (this._type === LightType.SPOT) {
             type = enums.LIGHT_SPOT;
-        }
-        else if (val === LightType.AMBIENT) {
-            type = enums.LIGHT_AMBIENT;
         }
         this._light.setType(type);
     }
@@ -436,12 +419,7 @@ export default class Light extends CCComponent {
     }
 
     onLoad() {
-        if (CC_JSB && CC_NATIVERENDERER) {
-            this.node.getWorldMatrix(_mat4_temp);
-            this._light.setWorldMatrix(_mat4_temp.m);
-        } else {
-            this._light.setNode(this.node);
-        }
+        this._light.setNode(this.node);
         this.type = this._type;
         this.color = this._color;
         this.intensity = this._intensity;

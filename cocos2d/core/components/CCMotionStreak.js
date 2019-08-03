@@ -283,14 +283,15 @@ var MotionStreak = cc.Class({
      */
     reset () {
         this._points.length = 0;
-        this._assembler._renderData.clear();
+        let renderData = this._renderData;
+        if (renderData) {
+            renderData.dataLength = 0;
+            renderData.vertexCount = 0;
+            renderData.indiceCount = 0;
+        }
         if (CC_EDITOR) {
             cc.engine.repaintInEditMode();
         }
-    },
-
-    update (dt) {
-        this._assembler.update(this, dt);
     }
 });
 

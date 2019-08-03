@@ -1,10 +1,8 @@
 // Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
 #if USE_ALPHA_TEST
-  
-  uniform ALPHA_TEST {
-    float alphaThreshold;
-  }
+  #property
+  uniform float alphaThreshold;
 #endif
 
 void ALPHA_TEST (in vec4 color) {

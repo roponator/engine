@@ -96,7 +96,6 @@ let Mask = cc.Class({
     },
 
     ctor () {
-        this._renderData = null;
         this._graphics = null;
 
         this._enableMaterial = null;
@@ -124,17 +123,16 @@ let Mask = cc.Class({
                 return this._type;
             },
             set: function (value) {
-                if (this._type !== value) {
-                    this._resetAssembler();
-                }
-
                 this._type = value;
                 if (this._type !== MaskType.IMAGE_STENCIL) {
                     this.spriteFrame = null;
                     this.alphaThreshold = 0;
                     this._updateGraphics();
                 }
-                
+                if (this._renderData) {
+                    this.destroyRenderData(this._renderData);
+                    this._renderData = null;
+                }
                 this._activateMaterial();
             },
             type: MaskType,
@@ -311,7 +309,7 @@ let Mask = cc.Class({
         this.node.off(cc.Node.EventType.SCALE_CHANGED, this._updateGraphics, this);
         this.node.off(cc.Node.EventType.SIZE_CHANGED, this._updateGraphics, this);
         this.node.off(cc.Node.EventType.ANCHOR_CHANGED, this._updateGraphics, this);
-        
+
         this.node._renderFlag &= ~RenderFlow.FLAG_POST_RENDER;
     },
 
@@ -329,8 +327,9 @@ let Mask = cc.Class({
 
     _onTextureLoaded () {
         // Mark render data dirty
-        this.setVertsDirty();
         if (this._renderData) {
+            this._renderData.uvDirty = true;
+            this._renderData.vertDirty = true;
             this.markForUpdateRenderData(true);
         }
         // Reactivate material
@@ -381,14 +380,14 @@ let Mask = cc.Class({
             // Reset material
             if (this._type === MaskType.IMAGE_STENCIL) {
                 let texture = this.spriteFrame.getTexture();
-                material.define('CC_USE_MODEL', false);
+                material.define('_USE_MODEL', false);
                 material.define('USE_TEXTURE', true);
 
                 material.setProperty('texture', texture);
                 material.setProperty('alphaThreshold', this.alphaThreshold);
             }
             else {
-                material.define('CC_USE_MODEL', true);
+                material.define('_USE_MODEL', true);
                 material.define('USE_TEXTURE', false);
             }
 
@@ -398,7 +397,10 @@ let Mask = cc.Class({
         
             if (!this._exitMaterial) {
                 this._exitMaterial = Material.getInstantiatedBuiltinMaterial('2d-sprite', this);
-                this._exitMaterial.effect.setStencilEnabled(gfx.STENCIL_DISABLE);
+                let passes = this._exitMaterial.effect.getDefaultTechnique().passes;
+                for (let i = 0; i < passes.length; i++) {
+                    passes[i].setStencilEnabled(gfx.STENCIL_DISABLE);
+                }
             }
 
             if (!this._clearMaterial) {
@@ -414,20 +416,9 @@ let Mask = cc.Class({
     _createGraphics () {
         if (!this._graphics) {
             this._graphics = new Graphics();
-            cc.Assembler.init(this._graphics);
             this._graphics.node = this.node;
             this._graphics.lineWidth = 0;
             this._graphics.strokeColor = cc.color(0, 0, 0, 0);
-        }
-        
-        if (!this._clearGraphics) {
-            this._clearGraphics = new Graphics();
-            cc.Assembler.init(this._clearGraphics);
-            this._clearGraphics.node = new Node();
-            this._clearGraphics._activateMaterial();
-            this._clearGraphics.lineWidth = 0;
-            this._clearGraphics.rect(-1, -1, 2, 2);
-            this._clearGraphics.fill();
         }
     },
 
